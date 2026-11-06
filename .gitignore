@@ -1,0 +1,16 @@
+/target/
+/.cache/
+/.local/
+/.idea/
+*.iml
+*.log
+*.pid
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-local.yaml
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

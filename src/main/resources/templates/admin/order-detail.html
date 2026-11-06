@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${'工单 #' + order.id + ' · FixCampus'}">工单详情 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body class="admin-page admin-detail-page">
+<a class="skip-link" href="#main">跳到工单详情</a>
+<header th:replace="~{fragments/admin :: header}"></header>
+<main class="workspace" id="main">
+    <nav class="breadcrumb" aria-label="当前位置"><a th:href="@{/admin/orders}">工单管理</a><span aria-hidden="true"> / </span><span aria-current="page">工单详情</span></nav>
+    <div class="page-heading"><div><p class="order-reference" th:text="${'工单 #' + order.id}"></p><h1>工单详情</h1><p>核对报修信息，安排合适的维修人员。</p></div><span th:replace="~{fragments/student :: status(${order.status})}"></span></div>
+    <div class="notice notice-success" role="status" th:if="${successMessage != null}" th:text="${successMessage}"></div>
+    <div class="detail-layout">
+        <div class="admin-detail-main">
+            <section class="surface detail-content" aria-labelledby="information-title">
+                <h2 id="information-title">报修信息</h2>
+                <dl class="detail-fields">
+                    <div class="detail-location"><dt>报修地点</dt><dd th:text="${order.location}"></dd></div>
+                    <div><dt>故障类型</dt><dd th:text="${order.category.label}"></dd></div>
+                    <div class="full-width detail-description"><dt>问题描述</dt><dd class="plain-text" th:text="${order.description}"></dd></div>
+                    <div class="full-width detail-description" th:if="${order.repairResult != null}"><dt>维修说明</dt><dd class="plain-text" th:text="${order.repairResult}"></dd></div>
+                </dl>
+                <div class="detail-meta">
+                    <p>提交时间 <time th:datetime="${order.createdAt}" th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}"></time></p>
+                    <p th:if="${order.completedAt != null}">完成时间 <time th:datetime="${order.completedAt}" th:text="${#temporals.format(order.completedAt, 'yyyy-MM-dd HH:mm')}"></time></p>
+                </div>
+            </section>
+            <section class="surface contact-card" aria-labelledby="participants-title">
+                <h2 id="participants-title">参与人员</h2>
+                <dl class="detail-fields">
+                    <div><dt>报修学生</dt><dd th:text="${order.studentName}"></dd><dd class="identity-username" th:text="${order.studentUsername}"></dd></div>
+                    <div><dt>维修人员</dt><dd th:text="${order.workerName ?: '尚未分配'}"></dd><dd class="identity-username" th:if="${order.workerUsername != null}" th:text="${order.workerUsername}"></dd></div>
+                </dl>
+            </section>
+            <section th:replace="~{fragments/order-history :: history(${order.history()})}"></section>
+        </div>
+        <aside class="order-actions" aria-labelledby="assignment-title">
+            <div th:if="${order.canAssign()}">
+                <h2 id="assignment-title">分配维修人员</h2>
+                <p>选择负责处理这张工单的维修人员。</p>
+                <p class="notice notice-error" role="status" th:if="${#lists.isEmpty(workers)}">暂无可分配的维修人员，暂时无法派单。</p>
+                <form class="order-form assignment-form" th:action="@{/admin/orders/{id}/assign(id=${order.id})}" method="post" th:object="${assignWorkerForm}" novalidate data-auth-form data-pending-label="分配中…">
+                    <div class="notice notice-error error-summary" role="alert" th:if="${#fields.hasAnyErrors()}">
+                        <h3>请检查派单信息</h3>
+                        <p><a href="#workerId" data-error-target="workerId">重新选择有效的维修人员。</a></p>
+                    </div>
+                    <div class="field">
+                        <label for="workerId">维修人员</label>
+                        <select id="workerId" th:field="*{workerId}" required data-required-message="请选择维修人员" aria-describedby="worker-help worker-error" th:disabled="${#lists.isEmpty(workers)}" th:attr="aria-invalid=${#fields.hasErrors('workerId')}">
+                            <option value="">请选择维修人员</option>
+                            <option th:each="worker : ${workers}" th:value="${worker.id}" th:text="${worker.realName + '（' + worker.username + '）'}"></option>
+                        </select>
+                        <p class="field-help" id="worker-help">派单后进入待维修状态，不支持改派。</p>
+                        <p class="field-error" id="worker-error"><span th:errors="*{workerId}"></span></p>
+                    </div>
+                    <button class="button button-primary" type="submit" th:disabled="${#lists.isEmpty(workers)}">确认分配</button>
+                    <p class="visually-hidden" role="status" data-submit-status></p>
+                </form>
+            </div>
+            <div th:unless="${order.canAssign()}">
+                <h2 id="assignment-title">当前进展</h2>
+                <p th:switch="${order.status.name()}"><span th:case="'PENDING_REPAIR'">工单已分配，等待维修人员开始处理。</span><span th:case="'IN_PROGRESS'">维修人员正在处理这张工单。</span><span th:case="'PENDING_CONFIRMATION'">维修人员已提交处理结果，等待报修学生确认。</span><span th:case="'COMPLETED'">本次维修已完成，工单记录继续保留。</span><span th:case="'CANCELLED'">工单已取消，不能再分配维修人员。</span></p>
+            </div>
+            <a class="return-link" th:href="@{/admin/orders}">返回工单管理</a>
+        </aside>
+    </div>
+    <footer th:replace="~{fragments/student :: footer}"></footer>
+</main>
+</body>
+</html>

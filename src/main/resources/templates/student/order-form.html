@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>提交报修 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body class="student-page student-form-page">
+<a class="skip-link" href="#main">跳到报修表单</a>
+<header th:replace="~{fragments/student :: header}"></header>
+<main class="workspace" id="main">
+    <nav class="breadcrumb" aria-label="当前位置"><a th:href="@{/student/orders}">我的报修</a><span aria-hidden="true"> / </span><span aria-current="page">提交报修</span></nav>
+    <div class="page-heading"><div><h1>提交报修</h1><p>把地点和问题描述清楚，方便维修人员了解情况。</p></div></div>
+    <div class="order-form-layout">
+        <form class="surface order-form" th:action="@{/student/orders}" method="post" th:object="${repairOrderForm}" novalidate data-auth-form data-pending-label="提交中…">
+            <div class="form-section-heading"><h2>报修信息</h2><p>标有 <span class="required-marker" aria-hidden="true">*</span> 的为必填项</p></div>
+            <div class="notice notice-error error-summary" role="alert" th:if="${#fields.hasAnyErrors()}">
+                <h2>请检查报修信息</h2>
+                <ul>
+                    <li th:if="${#fields.hasErrors('location')}"><a href="#location" data-error-target="location"><span th:errors="*{location}"></span></a></li>
+                    <li th:if="${#fields.hasErrors('category')}"><a href="#category" data-error-target="category"><span th:errors="*{category}"></span></a></li>
+                    <li th:if="${#fields.hasErrors('description')}"><a href="#description" data-error-target="description"><span th:errors="*{description}"></span></a></li>
+                </ul>
+            </div>
+            <div class="field">
+                <label for="location">报修地点 <span class="required-marker" aria-hidden="true">*</span><span class="visually-hidden">（必填）</span></label>
+                <input id="location" th:field="*{location}" type="text" autocomplete="off" placeholder="例如：3 号宿舍楼 502 室" required data-required-message="请输入报修地点" aria-describedby="location-help location-error" th:attr="aria-invalid=${#fields.hasErrors('location')}">
+                <p class="field-help" id="location-help">1～120 个字符。例如：3 号宿舍楼 502 室。</p>
+                <p class="field-error" id="location-error"><span th:errors="*{location}"></span></p>
+            </div>
+            <div class="field">
+                <label for="category">故障类型 <span class="required-marker" aria-hidden="true">*</span><span class="visually-hidden">（必填）</span></label>
+                <select id="category" th:field="*{category}" required data-required-message="请选择故障类型" aria-describedby="category-error" th:attr="aria-invalid=${#fields.hasErrors('category')}">
+                    <option value="">请选择故障类型</option>
+                    <option th:each="category : ${categories}" th:value="${category}" th:text="${category.label}"></option>
+                </select>
+                <p class="field-error" id="category-error"><span th:errors="*{category}"></span></p>
+            </div>
+            <div class="field">
+                <label for="description">问题描述 <span class="required-marker" aria-hidden="true">*</span><span class="visually-hidden">（必填）</span></label>
+                <textarea id="description" th:field="*{description}" rows="7" autocomplete="off" placeholder="请描述故障现象、出现时间和影响范围，方便维修人员了解现场情况。" required data-required-message="请输入问题描述" aria-describedby="description-help description-error" th:attr="aria-invalid=${#fields.hasErrors('description')}"></textarea>
+                <p class="character-count" data-character-count-for="description" hidden aria-hidden="true"></p>
+                <p class="field-help" id="description-help">1～2000 个字符。可说明故障现象、出现时间和影响范围。</p>
+                <p class="field-error" id="description-error"><span th:errors="*{description}"></span></p>
+            </div>
+            <div class="form-actions"><button class="button button-primary" type="submit">提交报修</button><a th:href="@{/student/orders}">返回我的报修</a></div>
+            <p class="visually-hidden" role="status" data-submit-status></p>
+        </form>
+        <aside class="form-guidance" aria-labelledby="guidance-title">
+            <h2 id="guidance-title">提交之后</h2>
+            <ol class="guidance-steps">
+                <li><strong>等待分配</strong><p>工单进入“待分配”状态，等待安排维修人员。</p></li>
+                <li><strong>跟进维修</strong><p>在工单详情中查看处理进展和维修记录。</p></li>
+                <li><strong>确认结果</strong><p>维修完成后，确认问题是否已经解决。</p></li>
+            </ol>
+            <div class="guidance-note"><h3>信息有误怎么办？</h3><p>尚未分配维修人员时，如问题已解决或信息填错，可以撤销工单。</p></div>
+            <p class="privacy-note">请勿在问题描述中填写密码等敏感信息。</p>
+        </aside>
+    </div>
+    <footer th:replace="~{fragments/student :: footer}"></footer>
+</main>
+</body>
+</html>

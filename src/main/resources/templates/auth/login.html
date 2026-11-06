@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>登录 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body class="auth-page login-page">
+<a class="skip-link" href="#main">跳到登录表单</a>
+<div class="auth-layout">
+    <aside th:replace="~{fragments/brand :: authBrand}"></aside>
+    <main class="auth-main" id="main">
+        <div class="form-container">
+            <header class="form-heading"><p class="login-context">校园报修服务</p><h1>欢迎回来</h1><p>登录你的 FixCampus 账号。</p></header>
+            <div class="notice notice-error" role="alert" th:if="${param.error != null}">用户名或密码错误</div>
+            <div class="notice notice-success" role="status" th:if="${param.registered != null}">注册成功，请使用新账号登录。</div>
+            <div class="notice notice-success" role="status" th:if="${param.logout != null}">你已安全退出。</div>
+            <form th:action="@{/login}" method="post" novalidate data-auth-form data-pending-label="登录中…">
+                <div class="field">
+                    <label for="username">用户名</label>
+                    <input id="username" name="username" type="text" autocomplete="username" required data-required-message="请输入用户名"
+                           autocapitalize="none" spellcheck="false" aria-describedby="username-help">
+                    <p class="field-help" id="username-help">英文字母不区分大小写。</p>
+                </div>
+                <div class="field">
+                    <label for="password">密码</label>
+                    <div class="password-control">
+                        <input id="password" name="password" type="password" autocomplete="current-password" required data-required-message="请输入密码">
+                        <button class="password-toggle" type="button" hidden data-password-toggle
+                                aria-controls="password" aria-label="显示密码" data-show-label="显示密码" data-hide-label="隐藏密码">显示</button>
+                    </div>
+                </div>
+                <button class="button button-primary button-wide" type="submit">登录</button>
+                <p class="visually-hidden" role="status" data-submit-status></p>
+            </form>
+            <p class="form-switch">还没有学生账号？<a th:href="@{/register}">注册学生账号</a></p>
+            <p class="staff-note">维修人员和管理员请使用已分配的账号登录。</p>
+        </div>
+        <footer class="site-footer">FixCampus — 校园报修管理平台</footer>
+    </main>
+</div>
+</body>
+</html>

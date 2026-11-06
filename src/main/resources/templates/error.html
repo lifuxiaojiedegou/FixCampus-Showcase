@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${(status ?: 500) + ' · 访问提示 · FixCampus'}">访问提示 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到访问提示</a>
+<main class="error-page" id="main">
+    <a th:replace="~{fragments/brand :: compactBrand}"></a>
+    <div class="error-content">
+        <p class="error-code" th:text="${status ?: 500}">500</p>
+        <h1 th:switch="${status}"><span th:case="400">提交的信息有误</span><span th:case="403">无权访问此页面</span><span th:case="404">页面未找到</span><span th:case="405">此操作需要通过表单提交</span><span th:case="409">暂时无法更新工单</span><span th:case="503">服务暂时不可用</span><span th:case="*">暂时无法完成请求</span></h1>
+        <p th:if="${message != null}" th:text="${message}"></p>
+        <p th:unless="${message != null}" th:switch="${status}"><span th:case="400">请检查填写内容后重新提交。</span><span th:case="403">请确认当前账号的权限，或刷新页面后重试。</span><span th:case="404">请检查地址，或返回入口继续访问。</span><span th:case="405">请返回页面，使用相应按钮完成操作。</span><span th:case="*">请稍后重试；如问题持续，请联系管理员。</span></p>
+        <a class="button button-primary" th:href="@{/}">返回入口</a>
+    </div>
+</main>
+</body>
+</html>

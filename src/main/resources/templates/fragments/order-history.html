@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section th:fragment="history(history)" class="surface order-history" aria-labelledby="history-title">
+    <h2 id="history-title">工单处理记录</h2>
+    <p class="history-notice" th:if="${history.incomplete()}">部分历史操作未保存完整记录。已知时间来自原工单字段，缺失时间标为“未记录”。</p>
+    <ol class="history-list">
+        <li th:each="entry : ${history.entries()}" th:classappend="${entry.recorded() ? '' : 'history-incomplete'}">
+            <div class="history-heading">
+                <h3 th:text="${entry.action().label}"></h3>
+                <time th:if="${entry.occurredAt() != null}" th:datetime="${entry.occurredAt()}" th:text="${#temporals.format(entry.occurredAt(), 'yyyy-MM-dd HH:mm:ss')}"></time>
+                <span class="history-missing" th:unless="${entry.occurredAt() != null}">时间未记录</span>
+            </div>
+            <p class="history-actor" th:if="${entry.recorded()}"><span th:text="${entry.actorRole().label}"></span><span th:text="${entry.actorName()}"></span></p>
+            <p class="history-source" th:if="${!entry.recorded()}" th:text="${entry.occurredAt() != null ? '来自原工单时间，未保存当时的操作人记录。' : '未保存该步骤的操作记录，无法还原准确时间。'}"></p>
+            <p class="plain-text history-detail" th:if="${entry.detail() != null}" th:text="${entry.detail()}"></p>
+        </li>
+    </ol>
+</section>
+</body>
+</html>

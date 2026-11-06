@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header class="app-header" th:fragment="header">
+    <div class="header-inner">
+        <a th:replace="~{fragments/brand :: compactBrand}"></a>
+        <nav class="workspace-navigation" aria-label="管理员导航"><a class="workspace-nav is-active" th:href="@{/admin/orders}" th:attr="aria-current=${orders != null ? 'page' : null}">工单管理</a></nav>
+        <div class="header-actions">
+            <div class="account-identity"><span class="role-tag">管理员</span><span class="account-username"><span class="visually-hidden">当前账号：</span><span th:text="${currentUser.username}" translate="no"></span></span></div>
+            <form th:action="@{/logout}" method="post" novalidate data-auth-form data-pending-label="退出中…"><button class="button button-secondary" type="submit">退出登录</button><p class="visually-hidden" role="status" data-submit-status></p></form>
+        </div>
+    </div>
+</header>
+</body>
+</html>

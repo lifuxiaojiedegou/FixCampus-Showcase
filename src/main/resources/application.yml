@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: fixcampus
+  datasource:
+    url: jdbc:mysql://${FIXCAMPUS_DB_HOST:127.0.0.1}:${FIXCAMPUS_DB_PORT:3306}/${FIXCAMPUS_DB_NAME:fixcampus_dev}?connectionTimeZone=Asia/Hong_Kong&characterEncoding=UTF-8
+    username: ${FIXCAMPUS_DB_USERNAME}
+    password: ${FIXCAMPUS_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 0
+      connection-timeout: 5000
+      initialization-fail-timeout: 5000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  sql:
+    init:
+      mode: never
+
+fixcampus:
+  demo:
+    enabled: ${FIXCAMPUS_DEMO_ENABLED:false}
+    admin-password: ${FIXCAMPUS_DEMO_ADMIN_PASSWORD:}
+    worker-password: ${FIXCAMPUS_DEMO_WORKER_PASSWORD:}
+    student-password: ${FIXCAMPUS_DEMO_STUDENT_PASSWORD:}
+
+server:
+  address: 127.0.0.1
+  port: ${FIXCAMPUS_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>工单管理 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body class="admin-page admin-orders-page">
+<a class="skip-link" href="#main">跳到工单管理</a>
+<header th:replace="~{fragments/admin :: header}"></header>
+<main class="workspace" id="main">
+    <div class="page-heading"><div><p class="student-greeting">你好，<span th:text="${currentUser.realName}">管理员</span></p><h1>工单管理</h1><p>统览校园报修，安排维修人员，跟进每一张工单。</p></div></div>
+    <nav class="todo-summary" aria-label="全部工单的待分配提醒">
+        <div class="todo-copy"><p>全局待分配 <strong th:text="${pendingCount}">0</strong> 张</p><span>统计全部工单，不受当前筛选影响。</span></div>
+        <a th:href="@{/admin/orders(status='PENDING_ASSIGNMENT')}">处理待分配 <span aria-hidden="true">→</span></a>
+    </nav>
+    <section class="admin-overview-section" th:if="${filterError == null}" aria-labelledby="overview-title">
+        <div class="admin-overview-heading"><h2 id="overview-title">工单概览</h2><p>未筛选时统计全部工单，筛选后仅统计当前结果。处理中包含待维修与维修中。</p></div>
+        <dl class="admin-overview">
+            <div class="admin-metric"><dt th:text="${hasFilters ? '当前结果' : '工单总量'}">工单总量</dt><dd><strong th:text="${#lists.size(orders)}">0</strong><span>张</span></dd></div>
+            <div class="admin-metric metric-pending"><dt>当前结果待分配</dt><dd><strong th:text="${#lists.size(orders.?[status.name() == 'PENDING_ASSIGNMENT'])}">0</strong><span>张</span></dd></div>
+            <div class="admin-metric metric-active"><dt>处理中</dt><dd><strong th:text="${#lists.size(orders.?[status.name() == 'PENDING_REPAIR' or status.name() == 'IN_PROGRESS'])}">0</strong><span>张</span></dd></div>
+            <div class="admin-metric metric-completed"><dt>已完成</dt><dd><strong th:text="${#lists.size(orders.?[status.name() == 'COMPLETED'])}">0</strong><span>张</span></dd></div>
+        </dl>
+    </section>
+    <th:block th:replace="~{fragments/order-filters :: filters('/admin/orders')}"></th:block>
+    <section class="orders-panel" th:if="${filterError == null}" aria-labelledby="orders-title">
+        <div class="list-heading"><h2 id="orders-title" th:text="${selectedStatus == null ? (hasFilters ? '搜索结果' : '全部工单') : selectedStatus.label + '工单'}">全部工单</h2><p th:text="${'共 ' + #lists.size(orders) + ' 条，按提交时间从新到旧排列'}"></p></div>
+        <div class="empty-state filtered-empty" th:if="${#lists.isEmpty(orders)}">
+            <span class="empty-symbol" aria-hidden="true">F</span>
+            <h3 th:text="${hasFilters ? '没有符合条件的工单' : '暂时没有工单'}"></h3>
+            <p th:text="${hasFilters ? '可以更换状态或关键词，也可以查看全部工单。' : '学生提交报修后，工单会显示在这里。'}"></p>
+            <a class="button button-secondary empty-action" th:if="${hasFilters}" th:href="@{/admin/orders}">查看全部工单</a>
+        </div>
+        <div th:unless="${#lists.isEmpty(orders)}">
+            <div class="order-columns" aria-hidden="true"><span>编号</span><span>报修地点</span><span>故障类型</span><span>当前状态</span><span>提交时间</span><span>操作</span></div>
+            <ol class="order-list"><li th:each="order : ${orders}"><article class="order-row" th:classappend="${order.status.name() == 'PENDING_ASSIGNMENT' ? 'needs-assignment' : ''}" th:attr="aria-labelledby=${'order-title-' + order.id}">
+                <div class="order-number"><span class="order-cell-label">编号</span><span th:text="${'#' + order.id}"></span></div>
+                <div class="order-location"><span class="order-cell-label">报修地点</span><h3 th:id="${'order-title-' + order.id}" th:text="${order.location}"></h3></div>
+                <div><span class="order-cell-label">故障类型</span><span th:text="${order.category.label}"></span></div>
+                <div><span class="order-cell-label">当前状态</span><span th:replace="~{fragments/student :: status(${order.status})}"></span></div>
+                <div class="order-date"><span class="order-cell-label">提交时间</span><time th:datetime="${order.createdAt}" th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}"></time></div>
+                <a class="order-detail-link" th:href="@{/admin/orders/{id}(id=${order.id})}" th:attr="aria-label=${'查看工单 #' + order.id + ' 的详情'}"><span th:text="${order.status.name() == 'PENDING_ASSIGNMENT' ? '去分配' : '查看详情'}">查看详情</span> <span aria-hidden="true">→</span></a>
+            </article></li></ol>
+        </div>
+    </section>
+    <footer th:replace="~{fragments/student :: footer}"></footer>
+</main>
+</body>
+</html>

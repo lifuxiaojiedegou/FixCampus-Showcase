@@ -1,0 +1,264 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Maven / MySQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      MAVEN_USER_HOME: ${{ github.workspace }}/.cache/maven
+      FIXCAMPUS_DB_HOST: 127.0.0.1
+      FIXCAMPUS_DB_PORT: '3306'
+      FIXCAMPUS_DB_NAME: fixcampus_ci_test
+      FIXCAMPUS_DB_USERNAME: fixcampus_ci
+      FIXCAMPUS_DEMO_ENABLED: 'false'
+      TZ: Asia/Hong_Kong
+    services:
+      mysql:
+        image: mysql:8.4.11
+        env:
+          # Disposable container only. Root is restricted to container-local access;
+          # no administrator password or repository secret enters Maven.
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_ROOT_HOST: localhost
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping --protocol=TCP --host=127.0.0.1 --user=root --silent"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 30
+          --health-start-period 15s
+
+    steps:
+      - name: Check out verified main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          overwrite-settings: false
+
+      - name: Cache Maven distribution and dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .cache/maven/wrapper
+            .cache/maven-repository
+          key: ${{ runner.os }}-jdk25-maven3916-${{ hashFiles('pom.xml', '.mvn/maven.config', '.mvn/wrapper/maven-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-jdk25-maven3916-
+
+      - name: Verify Java and Maven versions
+        run: |
+          set -euo pipefail
+          java -version
+          version="$(./mvnw --version)"
+          printf '%s\n' "$version"
+          grep -Fq 'Apache Maven 3.9.16 ' <<< "$version"
+
+      - name: Verify artifact redaction regressions
+        run: python3 -B scripts/test-ci-artifact-redaction.py
+
+      - name: Prepare isolated schema and DML account
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: |
+          set -euo pipefail
+          password="$(openssl rand -hex 24)"
+          printf '::add-mask::%s\n' "$password"
+          printf 'FIXCAMPUS_DB_PASSWORD=%s\n' "$password" >> "$GITHUB_ENV"
+          {
+            printf 'CREATE DATABASE `fixcampus_ci_test` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;\n'
+            printf 'USE `fixcampus_ci_test`;\n'
+            for schema in database/001-users.sql database/002-repair-orders.sql database/004-order-events.sql; do
+              printf 'Initializing %s\n' "$schema" >&2
+              cat "$schema"
+              printf '\n'
+            done
+            # Hex-only random password: no SQL quoting or shell interpolation risk.
+            printf "CREATE USER 'fixcampus_ci'@'%%' IDENTIFIED BY '%s';\n" "$password"
+            cat <<'SQL'
+          SET @grant_schema = IF(@@GLOBAL.partial_revokes, 'fixcampus_ci_test', REPLACE('fixcampus_ci_test', '_', CONCAT(CHAR(92), '_')));
+          SET @grant_sql = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON `', @grant_schema, '`.* TO ''fixcampus_ci''@''%''');
+          PREPARE grant_statement FROM @grant_sql;
+          EXECUTE grant_statement;
+          DEALLOCATE PREPARE grant_statement;
+          SQL
+          } | docker exec -i "$MYSQL_CONTAINER" mysql --protocol=socket --user=root --default-character-set=utf8mb4 --batch
+
+      - name: Verify isolated application connection
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: |
+          set -euo pipefail
+          identity="$(MYSQL_PWD="$FIXCAMPUS_DB_PASSWORD" docker exec --env MYSQL_PWD "$MYSQL_CONTAINER" \
+            mysql --protocol=TCP --host=127.0.0.1 --user=fixcampus_ci --database=fixcampus_ci_test \
+            --batch --skip-column-names --execute='SELECT VERSION(), DATABASE(), SUBSTRING_INDEX(CURRENT_USER(), "@", 1)')"
+          printf 'MySQL version / schema / account: %s\n' "$identity"
+          test "$identity" = $'8.4.11\tfixcampus_ci_test\tfixcampus_ci'
+          MYSQL_PWD="$FIXCAMPUS_DB_PASSWORD" docker exec --env MYSQL_PWD "$MYSQL_CONTAINER" \
+            mysql --protocol=TCP --host=127.0.0.1 --user=fixcampus_ci --database=fixcampus_ci_test \
+            --batch --execute='SHOW GRANTS'
+
+      - name: Build and run all tests sequentially
+        id: verify
+        run: ./mvnw --batch-mode clean verify
+
+      - name: Collect reports and database diagnostics
+        if: ${{ always() }}
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          PUSH_BEFORE_SHA: ${{ github.event.before || github.sha }}
+        run: |
+          set -euo pipefail
+          if docker logs "$MYSQL_CONTAINER" > "$RUNNER_TEMP/fixcampus-mysql.log" 2>&1; then
+            printf 'MySQL service log collected.\n'
+          else
+            printf '::warning::Unable to collect the MySQL service log.\n'
+          fi
+          python3 - <<'PY'
+          import csv
+          import json
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          destination = Path(os.environ['RUNNER_TEMP']) / 'fixcampus-ci-evidence'
+          destination.mkdir(parents=True, exist_ok=True)
+          if any(destination.iterdir()):
+              raise SystemExit('Evidence directory must start empty.')
+          identity = dict(schemaVersion='fixcampus-structured-v1',
+                          repository=os.environ['GITHUB_REPOSITORY'],
+                          repositoryId=int(os.environ['GITHUB_REPOSITORY_ID']),
+                          runId=int(os.environ['GITHUB_RUN_ID']),
+                          runAttempt=int(os.environ['GITHUB_RUN_ATTEMPT']),
+                          headSha=os.environ['GITHUB_SHA'], baseSha=os.environ['PUSH_BEFORE_SHA'],
+                          testedMergeSha=os.environ['GITHUB_SHA'],
+                          eventName=os.environ['GITHUB_EVENT_NAME'], ref=os.environ['GITHUB_REF'])
+          (destination / 'evidence.json').write_text(json.dumps(identity, indent=2) + '\n', encoding='utf-8')
+          secrets = {value for key, value in os.environ.items()
+                     if value and len(value) >= 8 and key.endswith(('_PASSWORD', '_TOKEN'))}
+          def redacted(text):
+              for secret in sorted(secrets, key=len, reverse=True):
+                  text = text.replace(secret, '[REDACTED]')
+              return text
+
+          source = Path('target/surefire-reports')
+          if source.exists():
+              for report in source.rglob('TEST-*.xml'):
+                  if report.is_file():
+                      target = destination / 'surefire-reports' / report.relative_to(source)
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_text(redacted(report.read_text(encoding='utf-8', errors='replace')), encoding='utf-8')
+          # Validate and summarize the exact redacted copies that will be uploaded.
+          report_directory = destination / 'surefire-reports'
+          reports = sorted(report_directory.rglob('TEST-*.xml'))
+          totals = dict(tests=0, failures=0, errors=0, skipped=0)
+          parse_errors = []
+          for report in reports:
+              try:
+                  suite = ET.parse(report).getroot()
+                  counts = {key: int(suite.attrib.get(key, 0)) for key in totals}
+                  for key, count in counts.items():
+                      totals[key] += count
+              except (ET.ParseError, ValueError):
+                  parse_errors.append(report.relative_to(report_directory).as_posix())
+          result = dict(verifyOutcome=os.environ['VERIFY_OUTCOME'], reportFiles=len(reports), parseErrors=parse_errors, totals=totals)
+          (destination / 'test-summary.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(result))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## Maven / MySQL results\n\n```json\n' + json.dumps(result, indent=2) + '\n```\n')
+
+          coverage_source = Path('target/site/jacoco')
+          coverage_target = destination / 'coverage'
+          coverage_target.mkdir(parents=True, exist_ok=True)
+          required = ('jacoco.xml', 'jacoco.csv')
+          for name in required:
+              report = coverage_source / name
+              if report.is_file():
+                  (coverage_target / name).write_text(redacted(report.read_text(encoding='utf-8')), encoding='utf-8')
+          missing = [name for name in required if not (coverage_target / name).is_file()
+                     or not (coverage_target / name).stat().st_size]
+          coverage_errors = []
+          counters = {}
+          class_count = 0
+          if not missing:
+              try:
+                  document = ET.parse(coverage_target / 'jacoco.xml').getroot()
+                  classes = document.findall('./package/class')
+                  class_count = len(classes)
+                  if document.tag != 'report' or not classes or not document.findall('sessioninfo'):
+                      raise ValueError('JaCoCo XML requires production classes and an execution session.')
+                  for kind in ('LINE', 'BRANCH', 'INSTRUCTION'):
+                      counter = document.find("counter[@type='" + kind + "']")
+                      missed, covered = int(counter.attrib['missed']), int(counter.attrib['covered'])
+                      if min(missed, covered) < 0 or (kind != 'BRANCH' and missed + covered == 0):
+                          raise ValueError('JaCoCo counter is empty or invalid: ' + kind)
+                      counters[kind] = dict(missed=missed, covered=covered, total=missed + covered)
+                  with (coverage_target / 'jacoco.csv').open(encoding='utf-8', newline='') as csv_file:
+                      rows = list(csv.DictReader(csv_file))
+                  # XML also lists interfaces/annotations and filtered classes without instructions;
+                  # JaCoCo CSV contains only classes with executable instructions.
+                  executable_classes = [item for item in classes if item.find("counter[@type='INSTRUCTION']") is not None]
+                  if not executable_classes or len(rows) != len(executable_classes):
+                      raise ValueError('JaCoCo CSV and XML executable class counts differ.')
+                  for kind in ('LINE', 'BRANCH', 'INSTRUCTION'):
+                      for row in rows:
+                          if not row['CLASS'] or min(int(row[kind + '_MISSED']), int(row[kind + '_COVERED'])) < 0:
+                              raise ValueError('JaCoCo CSV has invalid class counters.')
+                      # LINE can overlap between classes sharing source lines; use project XML for its total.
+                      if kind != 'LINE':
+                          for column in ('MISSED', 'COVERED'):
+                              if sum(int(row[kind + '_' + column]) for row in rows) != counters[kind][column.lower()]:
+                                  raise ValueError('JaCoCo CSV/XML counters differ: ' + kind)
+              except (ET.ParseError, ValueError, KeyError, AttributeError, OSError) as error:
+                  coverage_errors.append(type(error).__name__ + ': ' + str(error))
+          coverage_status = 'not generated' if missing else 'invalid' if coverage_errors else 'generated'
+          coverage_result = dict(status=coverage_status, missing=missing, validationErrors=coverage_errors,
+                                 classes=class_count, counters=counters)
+          (destination / 'coverage-summary.json').write_text(json.dumps(coverage_result, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(coverage_result))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## JaCoCo baseline\n\n```json\n' + json.dumps(coverage_result, indent=2) + '\n```\n')
+          if coverage_status != 'generated':
+              print('::warning::JaCoCo coverage ' + coverage_status + '; see coverage-summary.json. No valid baseline is claimed.')
+          if not reports:
+              print('::warning::No Surefire XML reports were produced; tests are not recorded as passing.')
+          if parse_errors:
+              print('::warning::Some uploaded redacted Surefire XML files could not be parsed; their contents are preserved in the artifact.')
+          if os.environ['VERIFY_OUTCOME'] == 'success':
+              if not reports or parse_errors or not totals['tests'] or any(totals[key] for key in ('failures', 'errors', 'skipped')):
+                  raise SystemExit('Successful verification requires real, nonempty passing Surefire reports without skipped tests.')
+              if coverage_status != 'generated':
+                  raise SystemExit('Successful verification requires valid, nonempty JaCoCo XML/CSV reports.')
+          PY
+
+      - name: Upload test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: surefire-mysql-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fixcampus-ci-evidence/
+          if-no-files-found: warn
+          retention-days: 14

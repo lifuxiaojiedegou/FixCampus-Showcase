@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>我的维修任务 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body class="worker-page worker-orders-page">
+<a class="skip-link" href="#main">跳到我的任务</a>
+<header th:replace="~{fragments/worker :: header}"></header>
+<main class="workspace" id="main">
+    <div class="page-heading">
+        <div><p class="student-greeting">你好，<span th:text="${currentUser.realName}">维修人员</span></p><h1>我的维修任务</h1><p>安排今日维修，跟进处理进展，查看历史任务。</p></div>
+    </div>
+    <nav class="todo-summary" aria-label="全部本人任务的待处理概览">
+        <div class="todo-copy"><p>待处理 <strong th:text="${todo.total()}">0</strong> 张</p><span>统计我的全部待维修与维修中任务，不受当前筛选影响。</span></div>
+        <div class="worker-summary-links">
+            <a th:href="@{/worker/orders(status='PENDING_REPAIR')}"><span>待维修</span><strong th:text="${todo.pendingRepair()}">0</strong></a>
+            <a th:href="@{/worker/orders(status='IN_PROGRESS')}"><span>维修中</span><strong th:text="${todo.inProgress()}">0</strong></a>
+        </div>
+    </nav>
+    <th:block th:replace="~{fragments/order-filters :: filters('/worker/orders')}"></th:block>
+    <section class="empty-state filtered-empty" th:if="${filterError == null and #lists.isEmpty(orders)}" aria-labelledby="empty-title">
+        <span class="empty-symbol" aria-hidden="true">F</span>
+        <h2 id="empty-title" th:text="${hasFilters ? '没有符合条件的工单' : '暂时没有维修任务'}"></h2>
+        <p th:text="${hasFilters ? '可以更换状态或关键词，也可以查看全部任务。' : '管理员分配工单后，任务会显示在这里。'}"></p>
+        <a class="button button-secondary empty-action" th:if="${hasFilters}" th:href="@{/worker/orders}">查看全部任务</a>
+    </section>
+    <section class="orders-panel" th:if="${filterError == null and !#lists.isEmpty(orders)}" aria-labelledby="orders-title">
+        <div class="list-heading"><h2 id="orders-title" th:text="${hasFilters ? '筛选结果' : '任务记录'}"></h2><p th:text="${'共 ' + #lists.size(orders) + ' 条，包含历史任务，按提交时间从新到旧排列'}"></p></div>
+        <div class="order-columns" aria-hidden="true"><span>编号</span><span>报修地点</span><span>故障类型</span><span>当前状态</span><span>提交时间</span><span>操作</span></div>
+        <ol class="order-list">
+            <li th:each="order : ${orders}">
+                <article class="order-row" th:attr="aria-labelledby=${'order-title-' + order.id}">
+                    <div class="order-number"><span class="order-cell-label">编号</span><span th:text="${'#' + order.id}"></span></div>
+                    <div class="order-location"><span class="order-cell-label">报修地点</span><h3 th:id="${'order-title-' + order.id}" th:text="${order.location}"></h3></div>
+                    <div><span class="order-cell-label">故障类型</span><span th:text="${order.category.label}"></span></div>
+                    <div><span class="order-cell-label">当前状态</span><span th:replace="~{fragments/student :: status(${order.status})}"></span></div>
+                    <div class="order-date"><span class="order-cell-label">提交时间</span><time th:datetime="${order.createdAt}" th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}"></time></div>
+                    <a class="order-detail-link" th:href="@{/worker/orders/{id}(id=${order.id})}" th:attr="aria-label=${'查看工单 #' + order.id + ' 的详情'}">查看任务 <span aria-hidden="true">→</span></a>
+                </article>
+            </li>
+        </ol>
+    </section>
+    <footer th:replace="~{fragments/student :: footer}"></footer>
+</main>
+</body>
+</html>

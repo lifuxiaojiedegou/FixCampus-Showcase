@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "adminPassword": "REPLACE_WITH_ADMIN_DEMO_PASSWORD",
+  "workerPassword": "REPLACE_WITH_WORKER_DEMO_PASSWORD",
+  "studentPassword": "REPLACE_WITH_STUDENT_DEMO_PASSWORD"
+}

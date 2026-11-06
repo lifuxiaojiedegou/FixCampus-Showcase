@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header class="app-header" th:fragment="header">
+    <div class="header-inner">
+        <a th:replace="~{fragments/brand :: compactBrand}"></a>
+        <nav class="workspace-navigation" aria-label="学生导航">
+            <a class="student-nav" th:href="@{/student/orders}" th:classappend="${orders != null or order != null ? 'is-active' : ''}" th:attr="aria-current=${orders != null ? 'page' : null}">我的报修</a>
+            <a class="workspace-nav" th:href="@{/student/orders/new}" th:classappend="${repairOrderForm != null ? 'is-active' : ''}" th:attr="aria-current=${repairOrderForm != null ? 'page' : null}">提交报修</a>
+        </nav>
+        <div class="header-actions">
+            <div class="account-identity"><span class="role-tag">学生</span><span class="account-username"><span class="visually-hidden">当前账号：</span><span th:text="${currentUser.username}" translate="no"></span></span></div>
+            <form th:action="@{/logout}" method="post" novalidate data-auth-form data-pending-label="退出中…"><button class="button button-secondary" type="submit">退出登录</button><p class="visually-hidden" role="status" data-submit-status></p></form>
+        </div>
+    </div>
+</header>
+<span th:fragment="status(status)" class="status-tag" th:classappend="${'status-' + status.cssClass}" th:text="${status.label}">待分配</span>
+<footer class="site-footer" th:fragment="footer">FixCampus — 校园报修管理平台</footer>
+</body>
+</html>

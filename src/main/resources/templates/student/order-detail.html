@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${'报修 #' + order.id + ' · FixCampus'}">报修详情 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body class="student-page">
+<a class="skip-link" href="#main">跳到报修详情</a>
+<header th:replace="~{fragments/student :: header}"></header>
+<main class="workspace" id="main">
+    <nav class="breadcrumb" aria-label="当前位置"><a th:href="@{/student/orders}">我的报修</a><span aria-hidden="true"> / </span><span aria-current="page">报修详情</span></nav>
+    <div class="page-heading"><div><p class="order-reference" th:text="${'报修 #' + order.id}"></p><h1>报修详情</h1><p>查看报修信息与当前处理状态。</p></div><span th:replace="~{fragments/student :: status(${order.status})}"></span></div>
+    <div class="notice notice-success" role="status" th:if="${successMessage != null}" th:text="${successMessage}"></div>
+    <div class="detail-layout">
+        <section class="surface detail-content" aria-labelledby="information-title">
+            <h2 id="information-title">报修信息</h2>
+            <dl class="detail-fields">
+                <div><dt>报修地点</dt><dd th:text="${order.location}"></dd></div>
+                <div><dt>故障类型</dt><dd th:text="${order.category.label}"></dd></div>
+                <div class="full-width"><dt>问题描述</dt><dd class="plain-text" th:text="${order.description}"></dd></div>
+                <div><dt>提交时间</dt><dd><time th:datetime="${order.createdAt}" th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}"></time></dd></div>
+                <div><dt>维修人员</dt><dd th:text="${order.workerName ?: '尚未分配'}"></dd></div>
+                <div class="full-width" th:if="${order.repairResult != null}"><dt>维修说明</dt><dd class="plain-text" th:text="${order.repairResult}"></dd></div>
+                <div th:if="${order.completedAt != null}"><dt>完成时间</dt><dd><time th:datetime="${order.completedAt}" th:text="${#temporals.format(order.completedAt, 'yyyy-MM-dd HH:mm')}"></time></dd></div>
+            </dl>
+        </section>
+        <aside class="order-actions" aria-labelledby="progress-title">
+            <h2 id="progress-title">当前进展</h2>
+            <p th:switch="${order.status.name()}"><span th:case="'PENDING_ASSIGNMENT'">报修已提交，等待分配维修人员。</span><span th:case="'PENDING_REPAIR'">维修人员已分配，等待开始维修。</span><span th:case="'IN_PROGRESS'">维修人员正在处理，请耐心等待。</span><span th:case="'PENDING_CONFIRMATION'">维修人员已提交处理结果，当前状态为待确认。</span><span th:case="'COMPLETED'">本次维修已完成，记录将继续保留。</span><span th:case="'CANCELLED'">这张工单已撤销，记录将继续保留。</span></p>
+            <div th:if="${order.canConfirm()}">
+                <p>请核对维修结果，确认问题已解决后再提交。确认后工单将结束。</p>
+                <form th:action="@{/student/orders/{id}/confirm(id=${order.id})}" method="post" novalidate data-auth-form data-pending-label="确认中…">
+                    <button class="button button-primary" type="submit">确认完成</button>
+                    <p class="visually-hidden" role="status" data-submit-status></p>
+                </form>
+            </div>
+            <details class="cancel-confirmation" th:if="${order.canCancel()}">
+                <summary>撤销工单</summary>
+                <p>撤销后不能恢复。如仍需维修，请重新提交报修。</p>
+                <form th:action="@{/student/orders/{id}/cancel(id=${order.id})}" method="post" novalidate data-auth-form data-pending-label="撤销中…"><button class="button button-danger" type="submit">确认撤销</button><p class="visually-hidden" role="status" data-submit-status></p></form>
+            </details>
+            <a class="return-link" th:href="@{/student/orders}">返回我的报修</a>
+        </aside>
+    </div>
+    <section th:replace="~{fragments/order-history :: history(${order.history()})}"></section>
+    <footer th:replace="~{fragments/student :: footer}"></footer>
+</main>
+</body>
+</html>

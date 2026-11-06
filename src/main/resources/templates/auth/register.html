@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>学生注册 · FixCampus</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/auth.js}"></script>
+</head>
+<body class="auth-page">
+<a class="skip-link" href="#main">跳到注册表单</a>
+<div class="auth-layout">
+    <aside th:replace="~{fragments/brand :: authBrand}"></aside>
+    <main class="auth-main" id="main">
+        <div class="form-container register-container">
+            <header class="form-heading"><h1>创建学生账号</h1><p>填写以下信息，注册后即可登录。</p></header>
+            <form th:action="@{/register}" method="post" th:object="${registerForm}" novalidate data-auth-form data-pending-label="提交中…">
+                <div class="notice notice-error error-summary" role="alert" th:if="${#fields.hasAnyErrors()}">
+                    <h2>请检查以下内容</h2>
+                    <p>修正后请重新填写两个密码框，再次提交。</p>
+                    <ul>
+                        <li th:if="${#fields.hasErrors('username')}"><a href="#username" data-error-target="username">用户名：<span th:errors="*{username}"></span></a></li>
+                        <li th:if="${#fields.hasErrors('password')}"><a href="#password" data-error-target="password">密码：<span th:errors="*{password}"></span></a></li>
+                        <li th:if="${#fields.hasErrors('confirmPassword') or #fields.hasErrors('passwordConfirmed')}"><a href="#confirmPassword" data-error-target="confirmPassword">确认密码：<span th:errors="*{confirmPassword}"></span><span th:if="${#fields.hasErrors('confirmPassword') and #fields.hasErrors('passwordConfirmed')}">；</span><span th:errors="*{passwordConfirmed}"></span></a></li>
+                        <li th:if="${#fields.hasErrors('realName')}"><a href="#realName" data-error-target="realName">姓名：<span th:errors="*{realName}"></span></a></li>
+                        <li th:if="${#fields.hasErrors('phone')}"><a href="#phone" data-error-target="phone">联系方式：<span th:errors="*{phone}"></span></a></li>
+                    </ul>
+                </div>
+                <div class="field">
+                    <label for="username">用户名</label>
+                    <input id="username" th:field="*{username}" type="text" autocomplete="username" required data-required-message="请输入用户名"
+                           autocapitalize="none" spellcheck="false" aria-describedby="username-help username-error"
+                           th:attr="aria-invalid=${#fields.hasErrors('username')}">
+                    <p class="field-help" id="username-help">4～30 位英文字母、数字或下划线，统一按小写保存。</p>
+                    <p class="field-error" id="username-error"><span th:errors="*{username}"></span></p>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="password">密码</label>
+                        <div class="password-control">
+                            <input id="password" name="password" type="password" autocomplete="new-password" required data-required-message="请输入密码"
+                                   aria-describedby="password-help password-error" th:attr="aria-invalid=${#fields.hasErrors('password')}">
+                            <button class="password-toggle" type="button" hidden data-password-toggle
+                                    aria-controls="password" aria-label="显示密码" data-show-label="显示密码" data-hide-label="隐藏密码">显示</button>
+                        </div>
+                        <p class="field-help" id="password-help">8～64 个字符，区分大小写。</p>
+                        <p class="field-error" id="password-error"><span th:errors="*{password}"></span></p>
+                    </div>
+                    <div class="field">
+                        <label for="confirmPassword">确认密码</label>
+                        <div class="password-control">
+                            <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required data-required-message="请再次输入密码"
+                                   aria-describedby="confirm-help confirm-error match-error"
+                                   th:attr="aria-invalid=${#fields.hasErrors('confirmPassword') or #fields.hasErrors('passwordConfirmed')}">
+                            <button class="password-toggle" type="button" hidden data-password-toggle
+                                    aria-controls="confirmPassword" aria-label="显示确认密码" data-show-label="显示确认密码" data-hide-label="隐藏确认密码">显示</button>
+                        </div>
+                        <p class="field-help" id="confirm-help">请再次输入相同密码。</p>
+                        <p class="field-error" id="confirm-error"><span th:errors="*{confirmPassword}"></span></p>
+                        <p class="field-error" id="match-error"><span th:errors="*{passwordConfirmed}"></span></p>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="realName">姓名</label>
+                        <input id="realName" th:field="*{realName}" type="text" autocomplete="name" required data-required-message="请输入姓名"
+                               aria-describedby="name-error" th:attr="aria-invalid=${#fields.hasErrors('realName')}">
+                        <p class="field-error" id="name-error"><span th:errors="*{realName}"></span></p>
+                    </div>
+                    <div class="field">
+                        <label for="phone">联系方式 <span class="optional">选填</span></label>
+                        <input id="phone" th:field="*{phone}" type="text" autocomplete="tel"
+                               aria-describedby="phone-error" th:attr="aria-invalid=${#fields.hasErrors('phone')}">
+                        <p class="field-error" id="phone-error"><span th:errors="*{phone}"></span></p>
+                    </div>
+                </div>
+                <button class="button button-primary button-wide" type="submit">注册学生账号</button>
+                <p class="visually-hidden" role="status" data-submit-status></p>
+            </form>
+            <p class="form-switch">已有账号？<a th:href="@{/login}">返回登录</a></p>
+        </div>
+        <footer class="site-footer">FixCampus — 校园报修管理平台</footer>
+    </main>
+</div>
+</body>
+</html>

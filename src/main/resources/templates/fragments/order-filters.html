@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="filters(basePath)">
+    <form class="filter-bar" role="search" aria-label="筛选工单" th:action="@{${basePath}}" method="get" th:object="${orderFilter}">
+        <div class="filter-field">
+            <label for="status">工单状态</label>
+            <select id="status" th:field="*{status}" th:attr="aria-invalid=${#fields.hasErrors('status') or #fields.hasErrors('statusValid')}, aria-describedby=${filterError != null ? 'filter-error' : null}">
+                <option value="">全部状态</option>
+                <option th:each="state : ${statuses}" th:value="${state}" th:text="${state.label}"></option>
+            </select>
+        </div>
+        <div class="filter-field filter-search">
+            <label for="q">编号或地点</label>
+            <input id="q" type="search" th:field="*{q}" placeholder="输入工单编号或地点关键词" th:attr="aria-invalid=${#fields.hasErrors('q')}, aria-describedby=${#fields.hasErrors('q') ? 'search-help search-error' : 'search-help'}">
+            <p class="field-help" id="search-help">编号精确匹配，支持 #编号；地点按关键词查找。最多 120 个字符。</p>
+            <p class="field-error" id="search-error" th:if="${#fields.hasErrors('q')}" th:errors="*{q}"></p>
+        </div>
+        <button class="button button-primary" type="submit">筛选</button>
+        <a class="filter-reset" th:href="@{${basePath}}">查看全部</a>
+    </form>
+    <p id="filter-error" class="field-error" role="alert" th:if="${filterError != null}" th:text="${filterError}"></p>
+</th:block>
+</body>
+</html>

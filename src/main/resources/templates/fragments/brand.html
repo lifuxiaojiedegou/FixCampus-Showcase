@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside class="auth-brand" th:fragment="authBrand">
+    <a class="brand brand-on-blue" th:href="@{/}">
+        <span class="brand-mark" aria-hidden="true">F</span>
+        <span><strong translate="no">FixCampus</strong><span class="brand-caption">校园报修管理平台</span></span>
+    </a>
+    <div class="brand-message">
+        <p class="brand-title">校园里的小问题，<br>在这里得到回应。</p>
+        <p>从提交报修到确认完成，<br>让每一次维修都有清晰的进展。</p>
+        <ol class="brand-journey" aria-label="报修流程"><li>提交报修</li><li>跟进进展</li><li>确认结果</li></ol>
+    </div>
+    <p class="brand-footer">学生 · 维修人员 · 管理员</p>
+</aside>
+<a class="brand" th:fragment="compactBrand" th:href="@{/}">
+    <span class="brand-mark" aria-hidden="true">F</span>
+    <span><strong translate="no">FixCampus</strong><span class="brand-caption">校园报修管理平台</span></span>
+</a>
+</body>
+</html>
