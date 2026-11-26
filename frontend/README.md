@@ -32,10 +32,10 @@ npm run build:demo
 
 ## 目录结构
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/app/` | 应用根布局（左侧固定导航与极简顶栏）、PWA 状态提示与演示配置 |
-| `src/pages/` | 真实三角色工作台（`RealStudentApp`、`RealOrderWorkspace`、`RealOrderAttachments`、`RealNotifications`、`RealAdminStats`）与独立 Mock 演示页 |
-| `src/shared/api/rest/` | `StudentClient`（会话代次隔离、CSRF/身份重验恢复、建单幂等键与草稿状态管理） |
-| `src/shared/forms/` | 与后端对齐的 Unicode 码点长度校验与表单归一化 |
-| `src/test/` | 10 个 Vitest 测试套件（覆盖三角色业务、跨标签切号隔离、未知结果恢复、附件配额、通知轮询与禁外网校验） |
+| 路径                   | 职责                                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/`             | 应用根布局（左侧固定导航与极简顶栏）、PWA 状态提示与演示配置                                                                                |
+| `src/pages/`           | 真实三角色工作台（`RealStudentApp`、`RealOrderWorkspace`、`RealOrderAttachments`、`RealNotifications`、`RealAdminStats`）与独立 Mock 演示页 |
+| `src/shared/api/rest/` | `StudentClient`（会话代次隔离、CSRF/身份重验恢复、建单幂等键与草稿状态管理）                                                                |
+| `src/shared/forms/`    | 与后端对齐的 Unicode 码点长度校验与表单归一化                                                                                               |
+| `src/test/`            | 10 个 Vitest 测试套件（覆盖三角色业务、跨标签切号隔离、未知结果恢复、附件配额、通知轮询与禁外网校验）                                       |
