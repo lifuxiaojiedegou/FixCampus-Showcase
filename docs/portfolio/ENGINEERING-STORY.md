@@ -1,6 +1,6 @@
-# FixCampus · 工程设计与验证说明
+# FixCampus · 工程设计与取舍说明
 
-这份文档聚焦代码中已落实的设计边界、工程取舍与验证证据，而不是将所有组件罗列成“技术亮点”。项目采用 **React 19 / TypeScript / Vite（Web/PWA）+ Spring Boot 3.5 单体后端 + MySQL 8.4（Flyway `V1～V6`）**，同时兼容传统 Thymeleaf SSR 路径；目前用于本机演示、课程提交与作品集展示，尚未进行公网生产部署。
+本文说明 FixCampus 2.0（**React 19 / TypeScript / Vite Web/PWA + Spring Boot 3.5 + MySQL 8.4 + Flyway `V1～V6`**）在权限隔离、并发事务、附件处理、统计口径与深分页上的核心设计与架构取舍。
 
 [返回 README](../../README.md) · [Web/PWA 演示](WEB-DEMO.md) · [系统架构与状态图](SYSTEM-DIAGRAMS.md) · [实现与测试依据](../technical/IMPLEMENTATION.md)
 
@@ -39,7 +39,7 @@
 
 1. **悲观行锁与短锁超时**：所有状态变更在 `@Transactional` 内通过 `@Lock(PESSIMISTIC_WRITE)` 锁定目标 `repair_orders` 行后再核对归属与前置状态；连接会话设置 `innodb_lock_wait_timeout = 3`，锁等待超时完整回滚并返回 `503 TEMPORARILY_UNAVAILABLE`，正常获取锁后的非法流转继续返回 `409 ORDER_CONFLICT`。
 2. **创建报修持久化幂等**：[StudentOrders](../../src/main/java/com/fixcampus/api/v1/StudentOrders.java) 将工单、`SUBMITTED` 事件与 `idempotency_requests` 写入同一事务；并发同键冲突回滚后回查已提交记录，同内容返回原工单，同键不同内容返回 `409`，前端保留原表单与 `Idempotency-Key` 供用户安全恢复提交。
-3. **事件与站内通知同事务落地**：[NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) 使用 `@Transactional(propagation = Propagation.MANDATORY)` 强制与工单写操作共享同一事务，通过确定性幂等键 `order:{orderId}:{eventType}:recipient:{recipientId}` 与 `ON DUPLICATE KEY UPDATE id = id` 去重，同时保留外键和 `CHECK` 约束严格报错；在默认无 Flyway 的传统 SSR Profile 下不装配该 Bean，保持旧路径零破坏。
+3. **事件与站内通知同事务落地**：[NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) 使用 `@Transactional(propagation = Propagation.MANDATORY)` 强制与工单写操作共享同一事务，通过确定性幂等键 `order:{orderId}:{eventType}:recipient:{recipientId}` 与 `ON DUPLICATE KEY UPDATE id = id` 去重，同时保留外键和 `CHECK` 约束严格报错。
 
 依据：[RepairOrderService](../../src/main/java/com/fixcampus/service/RepairOrderService.java) · [StudentOrders](../../src/main/java/com/fixcampus/api/v1/StudentOrders.java) · [NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) · [V4 幂等迁移](../../src/main/resources/db/migration/V4__create_idempotency.sql) · [V6 通知迁移](../../src/main/resources/db/migration/V6__create_notifications.sql)。
 
