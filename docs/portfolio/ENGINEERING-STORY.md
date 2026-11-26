@@ -1,6 +1,6 @@
-# FixCampus · 工程设计与验证说明
+# FixCampus · 工程设计与取舍说明
 
-这份文档聚焦代码中已落实的设计边界、工程取舍与验证证据，而不是将所有组件罗列成“技术亮点”。项目采用 **React 19 / TypeScript / Vite（Web/PWA）+ Spring Boot 3.5 单体后端 + MySQL 8.4（Flyway `V1～V6`）**，同时兼容传统 Thymeleaf SSR 路径；目前用于本机演示、课程提交与作品集展示，尚未进行公网生产部署。
+本文说明 FixCampus 2.0（**React 19 / TypeScript / Vite Web/PWA + Spring Boot 3.5 + MySQL 8.4 + Flyway `V1～V6`**）在权限隔离、并发事务、附件处理、统计口径与深分页上的核心设计与架构取舍。
 
 [返回 README](../../README.md) · [Web/PWA 演示](WEB-DEMO.md) · [系统架构与状态图](SYSTEM-DIAGRAMS.md) · [实现与测试依据](../technical/IMPLEMENTATION.md)
 
@@ -39,7 +39,7 @@
 
 1. **悲观行锁与短锁超时**：所有状态变更在 `@Transactional` 内通过 `@Lock(PESSIMISTIC_WRITE)` 锁定目标 `repair_orders` 行后再核对归属与前置状态；连接会话设置 `innodb_lock_wait_timeout = 3`，锁等待超时完整回滚并返回 `503 TEMPORARILY_UNAVAILABLE`，正常获取锁后的非法流转继续返回 `409 ORDER_CONFLICT`。
 2. **创建报修持久化幂等**：[StudentOrders](../../src/main/java/com/fixcampus/api/v1/StudentOrders.java) 将工单、`SUBMITTED` 事件与 `idempotency_requests` 写入同一事务；并发同键冲突回滚后回查已提交记录，同内容返回原工单，同键不同内容返回 `409`，前端保留原表单与 `Idempotency-Key` 供用户安全恢复提交。
-3. **事件与站内通知同事务落地**：[NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) 使用 `@Transactional(propagation = Propagation.MANDATORY)` 强制与工单写操作共享同一事务，通过确定性幂等键 `order:{orderId}:{eventType}:recipient:{recipientId}` 与 `ON DUPLICATE KEY UPDATE id = id` 去重，同时保留外键和 `CHECK` 约束严格报错；在默认无 Flyway 的传统 SSR Profile 下不装配该 Bean，保持旧路径零破坏。
+3. **事件与站内通知同事务落地**：[NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) 使用 `@Transactional(propagation = Propagation.MANDATORY)` 强制与工单写操作共享同一事务，通过确定性幂等键 `order:{orderId}:{eventType}:recipient:{recipientId}` 与 `ON DUPLICATE KEY UPDATE id = id` 去重，同时保留外键和 `CHECK` 约束严格报错。
 
 依据：[RepairOrderService](../../src/main/java/com/fixcampus/service/RepairOrderService.java) · [StudentOrders](../../src/main/java/com/fixcampus/api/v1/StudentOrders.java) · [NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) · [V4 幂等迁移](../../src/main/resources/db/migration/V4__create_idempotency.sql) · [V6 通知迁移](../../src/main/resources/db/migration/V6__create_notifications.sql)。
 
@@ -53,9 +53,9 @@
 
 - **真实 MySQL 集成测试**：覆盖三角色完整闭环（`SystemWorkflowIntegrationTest`、`OrderOperationsApiIntegrationTest`）、六线程同键创建幂等（`WebStudentSliceIntegrationTest`）、并发派单/撤销与锁超时（`AdminOrderIntegrationTest`）、回滚与事件唯一性（`OrderHistoryIntegrationTest`）、演示原子重置（`DemoResetIntegrationTest`）、管理员统计快照与缺失事件（`AdminStatisticsIntegrationTest`）、图片附件校验/配额/跨角色权限（`OrderAttachmentIntegrationTest`）、站内通知同事务/回滚/跨账号隔离（`NotificationIntegrationTest`）以及 Flyway `V1～V5 → V6` 增量升级校验（`RealMySqlTestSupport`）。
 - **前端自动化检查**：TypeScript 类型检查、ESLint（`--max-warnings=0`）、Prettier、静态禁外网校验（`check:no-network`）、生产与演示双模式构建，以及 Vitest 覆盖三角色页面、附件上传、通知轮询/已读竞态、统计展示与未知结果恢复。
-- **CI**：PR 触发 GitHub Actions，以 JDK 25、Maven Wrapper、独立 MySQL 8.4.11 容器运行后端全量 `clean verify` 并收集 Surefire 与 JaCoCo 结构化报告，同时独立运行前端 `npm run check`。
+- **CI**：推送 `main` 与 PR 均触发 GitHub Actions，以 JDK 25、Maven Wrapper、独立 MySQL 8.4.11 容器运行后端全量 `clean verify` 并收集 Surefire 与 JaCoCo 结构化报告，同时独立运行前端 `npm run check`。
 
-候选版本须通过自己仓库的 PR CI、Surefire 与 JaCoCo 记录独立验收，不能以不可公开访问的私有 Run 作为证明。
+所有自动化测试与 JaCoCo 覆盖率报告均由本仓库 GitHub Actions 独立生成，可在 Actions 页面公开复核。
 
 测试依据：[OrderOperationsApiIntegrationTest](../../src/test/java/com/fixcampus/OrderOperationsApiIntegrationTest.java) · [AdminStatisticsIntegrationTest](../../src/test/java/com/fixcampus/AdminStatisticsIntegrationTest.java) · [OrderAttachmentIntegrationTest](../../src/test/java/com/fixcampus/OrderAttachmentIntegrationTest.java) · [NotificationIntegrationTest](../../src/test/java/com/fixcampus/NotificationIntegrationTest.java) · [CI 工作流](../../.github/workflows/ci.yml)。
 

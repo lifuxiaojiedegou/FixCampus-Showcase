@@ -123,13 +123,11 @@ flowchart LR
 | 找不到 PWA 安装入口 | 使用生产构建的预览命令；实际部署用 HTTPS，将静态构建挂在 `/app/`，把 `/api/v1` 同源转发给应用 |
 | 断网或更新期间仍有待确认操作 | 保留当前页面，联网后按原提交恢复或核对工单；核对完再关闭所有 FixCampus 窗口加载新版 |
 
-## 设计决策与面试说明
+## 核心机制说明
 
-- **同一工单双派单会发生什么？** JPA 写操作在事务中以 `PESSIMISTIC_WRITE` 锁定同一行，会话级 `innodb_lock_wait_timeout = 3` 防止连接池长期阻塞，后到请求按最新状态判断（业务冲突 `409`，锁等待超时完整回滚并返回 `503`）。工单、处理事件与站内通知在同一事务提交。
-- **响应丢失后为什么不会多出一单？** 幂等表按用户、操作类型与提交键 `(actor_id, operation_code, request_key)` 约束唯一性，并保存请求内容摘要与工单结果。同键竞争时，失败事务先回滚，再读取已提交结果；同键不同内容返回 `409`。状态操作通过重新读取工单确认结果。
-- **图片上传如何防伪造、EXIF 泄露和悬挂文件？** 纯 JDK `ImageIO` 校验文件魔数，解码前先用 `ImageReader` 预检尺寸与总像素防解压炸弹，完整解码后剥离 EXIF 重编码；落盘键由随机十六进制生成，数量与全局配额同时受进程内写串行化与工单行锁保护，事务提交/回滚回调清理磁盘文件（若删除失败则记录日志并入队补偿清理）；读取响应带 `X-Content-Type-Options: nosniff`、`Content-Security-Policy: default-src 'none'; sandbox` 与 `Cache-Control: private, no-store`。
-- **站内通知如何避免重复发送或越权泄露？** 与工单写操作共用同一 `@Transactional(MANDATORY)` 事务，任一校验失败或回滚都不落库；基于 `order:{orderId}:{eventType}:recipient:{recipientId}` 唯一幂等键与 `ON DUPLICATE KEY UPDATE id = id` 去重（保留外键/CHECK 严格报错）；跨用户访问统一返回 `404`。
-- **10 万条工单的管理员末页如何优化？** 单机基准发现深分页按偏移量读取后排序并搬运的开销。改为先按索引取该页 ID，再按主键取页内详情。保留页码、总数和排序契约，测试覆盖双向排序和同时间戳。P95 从 123.02 ms 降至 39.88 ms；[基准报告](../benchmark.md)记录了输入、采样和基线。
-- **为什么 PWA 只缓存应用壳？** 静态资源可以用于离线打开，真实业务数据和 Session 仍由服务端校验。这样切换账号时不会从 Service Worker 读出上一个账号的工单。页面提示联网恢复，由用户确认后再更新应用。
-
-项目由个人主导，AI 辅助实现与文档。我的工作覆盖角色流程和验收定义、权限与事务设计、React/REST 接入、附件/通知/统计契约与边界、失败恢复和性能定位。验证由后端隔离库测试、前端检查及真实浏览器业务场景分层承担；已发布候选记录以实际页面和对应版本的 CI 为准。
+- **并发派单与撤销保护**：JPA 写操作在事务中以 `PESSIMISTIC_WRITE` 锁定目标工单行，会话级 `innodb_lock_wait_timeout = 3` 防止连接池长期阻塞，后到请求按最新状态判定（业务冲突 `409`，锁等待超时回滚并返回 `503`）。工单、处理事件与站内通知在同一事务提交。
+- **响应丢失后的幂等创建**：`idempotency_requests` 按 `(actor_id, operation_code, request_key)` 约束唯一性并保存请求摘要与结果工单 ID。同键并发冲突时回滚并回查已提交记录，同内容返回原工单，同键不同内容返回 `409`。
+- **图片附件安全与配额**：纯 JDK `ImageIO` 校验文件魔数并用 `ImageReader` 预检宽高与总像素，解码后剥离 EXIF 重编码落盘至随机 `storage_key`；单单张数与 64 MiB 全局配额由写串行化与行锁共同保护，事务回调清理磁盘文件；读取响应附带 `X-Content-Type-Options: nosniff`、`Content-Security-Policy: default-src 'none'; sandbox` 与 `Cache-Control: private, no-store`。
+- **同事务站内通知**：与工单写操作共用 `@Transactional(MANDATORY)` 事务，任一失败均不落库；基于 `order:{orderId}:{eventType}:recipient:{recipientId}` 唯一幂等键与 `ON DUPLICATE KEY UPDATE id = id` 去重，跨账号访问返回 `404`。
+- **10 万条工单深分页优化**：改为按索引先取目标页主键 ID、再按主键回表详情，保留页码、总数和排序契约，末页 P95 从 123.02 ms 降至 39.88 ms（见 [性能基准](../benchmark.md)）。
+- **最小 PWA 缓存边界**：Service Worker 仅预缓存静态应用壳，真实业务数据与 Session 始终由服务端校验，避免跨账号串号；新版本提示用户核对未确认操作后再切换。
