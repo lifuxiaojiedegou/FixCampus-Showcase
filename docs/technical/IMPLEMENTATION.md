@@ -11,7 +11,7 @@
 - **同事务站内通知**：[NotificationsApi](../../src/main/java/com/fixcampus/api/v1/NotificationsApi.java) 与 [NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) 通过 `@Transactional(MANDATORY)` 与工单写操作同事务落库，使用确定性幂等键与 `ON DUPLICATE KEY UPDATE id = id` 去重，并在默认 SSR Profile 下按条件不装配以保持向后兼容。验证入口：[NotificationServiceTest](../../src/test/java/com/fixcampus/service/NotificationServiceTest.java)、[NotificationsApiTest](../../src/test/java/com/fixcampus/api/v1/NotificationsApiTest.java)、[RepairOrderServiceDefaultProfileTest](../../src/test/java/com/fixcampus/service/RepairOrderServiceDefaultProfileTest.java)、[NotificationIntegrationTest](../../src/test/java/com/fixcampus/NotificationIntegrationTest.java)。
 - **数据库迁移与性能基准**：[RealMySqlTestSupport](../../src/test/java/com/fixcampus/RealMySqlTestSupport.java) 校验单隔离 schema 从 `V1～V5` 写入探针数据再升级至 `V6` 的无损兼容与约束生效；10 万条工单深分页基准见 [性能基准](../benchmark.md)。
 
-实际测试通过数与覆盖率以对应候选版本和 CI 运行记录为准。
+实际测试通过数与覆盖率以本仓库对应提交的 GitHub Actions CI 运行记录与产物为准。
 
 ## 原 SSR 实现与历史验证依据
 
@@ -86,8 +86,6 @@ erDiagram
 
 [现有 CI](../../.github/workflows/ci.yml) 在 Ubuntu 24.04 上运行 JDK 25、Maven 3.9.16、MySQL 8.4.11，按 001→002→004 初始化，使用非 root 单库 DML 账号且关闭演示初始化。Maven 失败保持 Job failure，收集与上传以 always 条件尽可能保存诊断；成功时拒绝缺失、损坏或空的必要报告。
 
-候选版本的测试与覆盖率须以其独立 CI 产生的 Surefire 和 JaCoCo 报告复核；不沿用私有仓历史指标。
+测试通过数与 JaCoCo 覆盖率以本仓库 GitHub Actions 生成的 Surefire 与 JaCoCo 产物实时复核，不宣称未完成的生产部署或未经验证的优化指标。
 
 完整 HTTP 闭环的阅读入口是 [SystemWorkflowIntegrationTest](../../src/test/java/com/fixcampus/SystemWorkflowIntegrationTest.java) 的 `registeredStudentCompletesLifecycleThroughRealCookieSessions`，通过真实 Cookie 会话完成学生提交、管理员分派、维修处理和学生确认；`realSessionsEnforceRoleAndOwnershipBeforeReadingOrMutatingOrders` 验证真实会话下的权限边界。
-
-公开候选应使用自己的 PR CI 和真实审查记录；不宣称特定仓库保护规则、生产部署或尚未完成的工程优化。

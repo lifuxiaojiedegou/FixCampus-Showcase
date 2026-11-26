@@ -1,5 +1,7 @@
 # FixCampus · 校园报修管理平台
 
+[![CI](https://github.com/lifuxiaojiedegou/FixCampus-Showcase/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lifuxiaojiedegou/FixCampus-Showcase/actions/workflows/ci.yml)
+
 面向高校后勤报修场景的全栈 Web/PWA 应用：学生提交报修并上传故障图片，管理员查看统计并派单，维修人员接单处理并上传完工照片，学生收到站内通知后确认完成。三角色共享同一套 React 前端与 Spring Boot / MySQL 后端。
 
 [运行真实工作台](docs/portfolio/WEB-DEMO.md#运行真实工作台) · [三角色全流程演示](docs/portfolio/WEB-DEMO.md#走完一张工单) · [架构与 API](docs/portfolio/WEB-DEMO.md#架构与-api) · [界面预览](#界面预览真实隔离环境实机截图) · [系统架构图](docs/portfolio/SYSTEM-DIAGRAMS.md) · [工程设计说明](docs/portfolio/ENGINEERING-STORY.md) · [性能基准](docs/benchmark.md)
@@ -23,13 +25,13 @@
 | --- | --- |
 | ![统一登录入口](docs/portfolio/screenshots/web-login.png) | ![学生新建报修表单](docs/portfolio/screenshots/web-student-create-order.png) |
 
-| 管理员多状态工单工作台 | 学生工单详情与故障图片附件 |
+| 管理员多状态工单工作台 | 学生站内通知中心与未读角标 |
 | --- | --- |
-| ![管理员工单列表工作台](docs/portfolio/screenshots/web-admin-workbench.png) | ![学生工单详情与故障图片附件](docs/portfolio/screenshots/web-student-order-attachment.png) |
+| ![管理员工单列表工作台](docs/portfolio/screenshots/web-admin-workbench.png) | ![学生站内通知中心与未读角标](docs/portfolio/screenshots/web-student-notifications.png) |
 
-| 维修人员完工结果与双角色附件 | 学生站内通知中心与未读角标 |
+| 学生工单详情与故障图片附件 | 维修人员完工结果与双角色附件 |
 | --- | --- |
-| ![维修人员完工结果与双角色附件](docs/portfolio/screenshots/web-worker-repair-attachment.png) | ![学生站内通知中心与未读角标](docs/portfolio/screenshots/web-student-notifications.png) |
+| ![学生工单详情与故障图片附件](docs/portfolio/screenshots/web-student-order-attachment.png) | ![维修人员完工结果与双角色附件](docs/portfolio/screenshots/web-worker-repair-attachment.png) |
 
 ### 管理员统计概览与两类独立耗时
 
@@ -43,7 +45,7 @@
 - **管理员统计面板**：在只读事务内通过 SQL 聚合输出全量状态分布、报修分类分布、7/14/30 天按日趋势，严格区分「提交 → 维修完工」与「提交 → 学生确认」两种耗时，并在 API 契约中诚实声明自由文本地点暂不做区域聚合的边界。
 - **数据库分页优化与可观测性**：单机 10 万条工单对照基准中，管理员无筛选末页延迟从 123.02 ms 降至 39.88 ms（P95，4 并发槽，每场景 120 样本），[测量条件与复现指令](docs/benchmark.md)。全链路透传 `X-Request-Id` 与脱敏日志关联。
 
-技术栈为 React 19、TypeScript、Vite、Java 25、Spring Boot 3.5、Spring Security、Spring Data JPA / JDBC、Flyway（`V1～V6`）与 MySQL 8.4。后端回归运行在隔离 MySQL，前端覆盖三角色流程、附件、通知、统计、请求恢复与应用壳。候选版本的持续集成结果以对应版本的实际运行记录为准。[CI 工作流](.github/workflows/ci.yml)
+技术栈为 React 19、TypeScript、Vite、Java 25、Spring Boot 3.5、Spring Security、Spring Data JPA / JDBC、Flyway（`V1～V6`）与 MySQL 8.4。本仓库通过 [GitHub Actions CI](.github/workflows/ci.yml) 在隔离 MySQL 8.4.11 容器与 Node 24 环境下持续验证全量后端测试（457 项）与前端质量检查（160 项 + 标准构建），每次运行的测试与 JaCoCo 覆盖率产物均可在 Actions 页面公开复核。
 
 ## 软件工程标准文档
 

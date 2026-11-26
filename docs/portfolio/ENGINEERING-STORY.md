@@ -53,9 +53,9 @@
 
 - **真实 MySQL 集成测试**：覆盖三角色完整闭环（`SystemWorkflowIntegrationTest`、`OrderOperationsApiIntegrationTest`）、六线程同键创建幂等（`WebStudentSliceIntegrationTest`）、并发派单/撤销与锁超时（`AdminOrderIntegrationTest`）、回滚与事件唯一性（`OrderHistoryIntegrationTest`）、演示原子重置（`DemoResetIntegrationTest`）、管理员统计快照与缺失事件（`AdminStatisticsIntegrationTest`）、图片附件校验/配额/跨角色权限（`OrderAttachmentIntegrationTest`）、站内通知同事务/回滚/跨账号隔离（`NotificationIntegrationTest`）以及 Flyway `V1～V5 → V6` 增量升级校验（`RealMySqlTestSupport`）。
 - **前端自动化检查**：TypeScript 类型检查、ESLint（`--max-warnings=0`）、Prettier、静态禁外网校验（`check:no-network`）、生产与演示双模式构建，以及 Vitest 覆盖三角色页面、附件上传、通知轮询/已读竞态、统计展示与未知结果恢复。
-- **CI**：PR 触发 GitHub Actions，以 JDK 25、Maven Wrapper、独立 MySQL 8.4.11 容器运行后端全量 `clean verify` 并收集 Surefire 与 JaCoCo 结构化报告，同时独立运行前端 `npm run check`。
+- **CI**：推送 `main` 与 PR 均触发 GitHub Actions，以 JDK 25、Maven Wrapper、独立 MySQL 8.4.11 容器运行后端全量 `clean verify` 并收集 Surefire 与 JaCoCo 结构化报告，同时独立运行前端 `npm run check`。
 
-候选版本须通过自己仓库的 PR CI、Surefire 与 JaCoCo 记录独立验收，不能以不可公开访问的私有 Run 作为证明。
+所有自动化测试与 JaCoCo 覆盖率报告均由本仓库 GitHub Actions 独立生成，可在 Actions 页面公开复核。
 
 测试依据：[OrderOperationsApiIntegrationTest](../../src/test/java/com/fixcampus/OrderOperationsApiIntegrationTest.java) · [AdminStatisticsIntegrationTest](../../src/test/java/com/fixcampus/AdminStatisticsIntegrationTest.java) · [OrderAttachmentIntegrationTest](../../src/test/java/com/fixcampus/OrderAttachmentIntegrationTest.java) · [NotificationIntegrationTest](../../src/test/java/com/fixcampus/NotificationIntegrationTest.java) · [CI 工作流](../../.github/workflows/ci.yml)。
 
