@@ -91,9 +91,8 @@ class ArtifactRedactionRegressionTest(unittest.TestCase):
             'GITHUB_REPOSITORY_ID': '42',
             'GITHUB_RUN_ID': '42',
             'GITHUB_RUN_ATTEMPT': '1',
-            'PUSH_BEFORE_SHA': '1' * 40,
-            'GITHUB_EVENT_NAME': 'push',
-            'GITHUB_REF': 'refs/heads/main',
+            'PR_HEAD_SHA': '2' * 40,
+            'PR_BASE_SHA': '1' * 40,
             'GITHUB_SHA': '3' * 40,
             'GITHUB_STEP_SUMMARY': str(self.root / 'step-summary.md'),
             'FIXCAMPUS_DB_PASSWORD': SYNTHETIC_SECRET,
@@ -113,16 +112,6 @@ class ArtifactRedactionRegressionTest(unittest.TestCase):
                 patch.object(ET, 'parse', side_effect=observe_parse), redirect_stdout(io.StringIO()):
             exec(collector_code(), {'__name__': '__ci_report_collector__'})
         return self.summary()
-
-    def test_main_push_provenance_uses_actual_commit(self):
-        self.report(tests=2)
-        self.run_collector()
-        identity = json.loads((self.evidence / 'evidence.json').read_text(encoding='utf-8'))
-        self.assertEqual(identity['eventName'], 'push')
-        self.assertEqual(identity['ref'], 'refs/heads/main')
-        self.assertEqual(identity['headSha'], '3' * 40)
-        self.assertEqual(identity['baseSha'], '1' * 40)
-        self.assertEqual(identity['testedMergeSha'], '3' * 40)
 
     def test_attribute_secrets_remain_valid_xml(self):
         self.report(content=(

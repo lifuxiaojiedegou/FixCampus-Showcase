@@ -23,7 +23,7 @@ class RegistrationFailureHandlingTest {
         var service = mock(UserService.class);
         doThrow(new DataAccessResourceFailureException("internal-database-details"))
                 .when(service).register(any(RegisterForm.class));
-        var mvc = MockMvcBuilders.standaloneSetup(new AuthController(service))
+        var mvc = MockMvcBuilders.standaloneSetup(new AuthController(service, true))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
         mvc.perform(post("/register").param("username", "failure_test").param("realName", "测试学生")
                         .param("password", "Synthetic_Test_123").param("confirmPassword", "Synthetic_Test_123"))

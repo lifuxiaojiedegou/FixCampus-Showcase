@@ -27,6 +27,7 @@ import com.fixcampus.view.OrderHistory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,12 +40,15 @@ public class RepairOrderService {
     private final UserRepository users;
     private final Clock clock;
     private final OrderEventRepository events;
+    private final ObjectProvider<NotificationService> notifications;
 
-    public RepairOrderService(RepairOrderRepository orders, UserRepository users, Clock clock, OrderEventRepository events) {
+    public RepairOrderService(RepairOrderRepository orders, UserRepository users, Clock clock, OrderEventRepository events,
+                              ObjectProvider<NotificationService> notifications) {
         this.orders = orders;
         this.users = users;
         this.clock = clock;
         this.events = events;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -56,6 +60,7 @@ public class RepairOrderService {
                 LocalDateTime.now(clock));
         orders.saveAndFlush(order);
         record(order, actor, OrderAction.SUBMITTED, order.getCreatedAt(), null);
+        notifications.ifAvailable(service -> service.publish(order, OrderAction.SUBMITTED, actor.getId(), order.getCreatedAt()));
         return order.getId();
     }
 
@@ -96,7 +101,9 @@ public class RepairOrderService {
         if (!actor.getId().equals(order.getStudent().getId())) { throw new OrderNotFoundException(); }
         if (order.getStatus() != RepairStatus.PENDING_ASSIGNMENT) { throw new OrderConflictException(); }
         order.cancel();
-        record(order, actor, OrderAction.CANCELLED, LocalDateTime.now(clock), null);
+        var time = LocalDateTime.now(clock);
+        record(order, actor, OrderAction.CANCELLED, time, null);
+        notifications.ifAvailable(service -> service.publish(order, OrderAction.CANCELLED, actor.getId(), time));
         // Commit flushes inside this transaction; a failed commit never returns a success result.
     }
 
@@ -110,6 +117,7 @@ public class RepairOrderService {
         var time = LocalDateTime.now(clock);
         order.confirmCompletion(time);
         record(order, actor, OrderAction.CONFIRMED, time, null);
+        notifications.ifAvailable(service -> service.publish(order, OrderAction.CONFIRMED, actor.getId(), time));
     }
 
     @Transactional(readOnly = true)
@@ -151,7 +159,9 @@ public class RepairOrderService {
         if (order.getStatus() != RepairStatus.PENDING_ASSIGNMENT) { throw new OrderConflictException(); }
         var worker = users.findByIdAndRole(workerId, Role.WORKER).orElseThrow(InvalidWorkerException::new);
         order.assignTo(worker);
-        record(order, actor, OrderAction.ASSIGNED, LocalDateTime.now(clock), "分配给维修人员：" + worker.getRealName());
+        var time = LocalDateTime.now(clock);
+        record(order, actor, OrderAction.ASSIGNED, time, "分配给维修人员：" + worker.getRealName());
+        notifications.ifAvailable(service -> service.publish(order, OrderAction.ASSIGNED, actor.getId(), time));
     }
 
     @Transactional(readOnly = true)
@@ -194,7 +204,9 @@ public class RepairOrderService {
         var order = lockWorkerOrder(actor, id);
         if (order.getStatus() != RepairStatus.PENDING_REPAIR) { throw new OrderConflictException(); }
         order.startRepair();
-        record(order, actor, OrderAction.REPAIR_STARTED, LocalDateTime.now(clock), null);
+        var time = LocalDateTime.now(clock);
+        record(order, actor, OrderAction.REPAIR_STARTED, time, null);
+        notifications.ifAvailable(service -> service.publish(order, OrderAction.REPAIR_STARTED, actor.getId(), time));
     }
 
     @Transactional
@@ -202,7 +214,9 @@ public class RepairOrderService {
         var order = lockWorkerOrder(actor, id);
         if (order.getStatus() != RepairStatus.IN_PROGRESS) { throw new OrderConflictException(); }
         order.submitRepair(form.getRepairResult());
-        record(order, actor, OrderAction.REPAIR_COMPLETED, LocalDateTime.now(clock), form.getRepairResult());
+        var time = LocalDateTime.now(clock);
+        record(order, actor, OrderAction.REPAIR_COMPLETED, time, form.getRepairResult());
+        notifications.ifAvailable(service -> service.publish(order, OrderAction.REPAIR_COMPLETED, actor.getId(), time));
         // completedAt belongs exclusively to the student's later confirmation, not this submission.
     }
 

@@ -103,10 +103,13 @@ class OrderSearchIntegrationTest extends RealMySqlTestSupport {
     }
 
     @AfterEach
-    void removeOrders() { for (Long id : ownedUsers) jdbc.update("DELETE FROM repair_orders WHERE student_id=?", id); }
+    void removeOrders() { ownedUsers.forEach(id -> removeStudentOrderFixtures(jdbc, id)); }
 
     @AfterAll
-    void removeUsers() { removeOrders(); for (Long id : ownedUsers) jdbc.update("DELETE FROM users WHERE id=?", id); }
+    void removeUsers() {
+        removeOrders();
+        ownedUsers.forEach(id -> removeUserFixture(jdbc, id));
+    }
 
     private CampusPrincipal actor(Role role) { return switch (role) { case STUDENT -> student; case WORKER -> worker; case ADMIN -> admin; }; }
     private String route(Role role) { return role.getHomePath(); }

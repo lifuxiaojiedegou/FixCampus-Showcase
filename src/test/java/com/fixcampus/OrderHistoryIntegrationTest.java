@@ -66,10 +66,11 @@ class OrderHistoryIntegrationTest extends RealMySqlTestSupport {
 
     @AfterEach void cleanOrders() {
         reset(events);
-        for (Long id : ownedUsers) jdbc.update("DELETE FROM repair_orders WHERE student_id=?", id);
+        ownedUsers.forEach(id -> removeStudentOrderFixtures(jdbc, id));
     }
     @AfterAll void cleanUsers() {
-        cleanOrders(); for (Long id : ownedUsers) jdbc.update("DELETE FROM users WHERE id=?", id);
+        cleanOrders();
+        ownedUsers.forEach(id -> removeUserFixture(jdbc, id));
     }
 
     private Long create() {

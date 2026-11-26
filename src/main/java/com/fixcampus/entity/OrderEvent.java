@@ -38,6 +38,7 @@ public class OrderEvent {
     }
     public Long getId() { return id; }
     public OrderAction getAction() { return action; }
+    public Long getActorId() { return actor.getId(); }
     public Role getActorRole() { return actorRole; }
     public String getActorName() { return actorName; }
     public LocalDateTime getOccurredAt() { return occurredAt; }

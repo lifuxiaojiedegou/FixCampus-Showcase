@@ -3,6 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -24,8 +27,14 @@ jobs:
       MAVEN_USER_HOME: ${{ github.workspace }}/.cache/maven
       FIXCAMPUS_DB_HOST: 127.0.0.1
       FIXCAMPUS_DB_PORT: '3306'
-      FIXCAMPUS_DB_NAME: fixcampus_ci_test
+      FIXCAMPUS_DB_NAME: fixcampus_m421_ci_test
       FIXCAMPUS_DB_USERNAME: fixcampus_ci
+      FIXCAMPUS_MIGRATION_USERNAME: fixcampus_ci_migration
+      # Every Spring test context migrates/validates the same disposable schema
+      # before Hibernate validation, including the original SSR regression tests.
+      SPRING_PROFILES_ACTIVE: web-slice
+      FIXCAMPUS_WEB_ORIGIN: http://127.0.0.1:5173
+      FIXCAMPUS_COOKIE_SECURE: 'false' # Real HTTP tests use loopback only.
       FIXCAMPUS_DEMO_ENABLED: 'false'
       TZ: Asia/Hong_Kong
     services:
@@ -46,7 +55,7 @@ jobs:
           --health-start-period 15s
 
     steps:
-      - name: Check out verified main commit
+      - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -79,27 +88,30 @@ jobs:
       - name: Verify artifact redaction regressions
         run: python3 -B scripts/test-ci-artifact-redaction.py
 
-      - name: Prepare isolated schema and DML account
+      - name: Prepare empty isolated schema and separated migration / DML accounts
         env:
           MYSQL_CONTAINER: ${{ job.services.mysql.id }}
         run: |
           set -euo pipefail
           password="$(openssl rand -hex 24)"
+          migration_password="$(openssl rand -hex 24)"
           printf '::add-mask::%s\n' "$password"
+          printf '::add-mask::%s\n' "$migration_password"
           printf 'FIXCAMPUS_DB_PASSWORD=%s\n' "$password" >> "$GITHUB_ENV"
+          printf 'FIXCAMPUS_MIGRATION_PASSWORD=%s\n' "$migration_password" >> "$GITHUB_ENV"
           {
-            printf 'CREATE DATABASE `fixcampus_ci_test` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;\n'
-            printf 'USE `fixcampus_ci_test`;\n'
-            for schema in database/001-users.sql database/002-repair-orders.sql database/004-order-events.sql; do
-              printf 'Initializing %s\n' "$schema" >&2
-              cat "$schema"
-              printf '\n'
-            done
+            # No legacy SQL or demo data: Flyway V1-V4 owns first initialization.
+            printf 'CREATE DATABASE `fixcampus_m421_ci_test` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;\n'
             # Hex-only random password: no SQL quoting or shell interpolation risk.
             printf "CREATE USER 'fixcampus_ci'@'%%' IDENTIFIED BY '%s';\n" "$password"
+            printf "CREATE USER 'fixcampus_ci_migration'@'%%' IDENTIFIED BY '%s';\n" "$migration_password"
             cat <<'SQL'
-          SET @grant_schema = IF(@@GLOBAL.partial_revokes, 'fixcampus_ci_test', REPLACE('fixcampus_ci_test', '_', CONCAT(CHAR(92), '_')));
+          SET @grant_schema = IF(@@GLOBAL.partial_revokes, 'fixcampus_m421_ci_test', REPLACE('fixcampus_m421_ci_test', '_', CONCAT(CHAR(92), '_')));
           SET @grant_sql = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON `', @grant_schema, '`.* TO ''fixcampus_ci''@''%''');
+          PREPARE grant_statement FROM @grant_sql;
+          EXECUTE grant_statement;
+          DEALLOCATE PREPARE grant_statement;
+          SET @grant_sql = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES ON `', @grant_schema, '`.* TO ''fixcampus_ci_migration''@''%''');
           PREPARE grant_statement FROM @grant_sql;
           EXECUTE grant_statement;
           DEALLOCATE PREPARE grant_statement;
@@ -112,12 +124,12 @@ jobs:
         run: |
           set -euo pipefail
           identity="$(MYSQL_PWD="$FIXCAMPUS_DB_PASSWORD" docker exec --env MYSQL_PWD "$MYSQL_CONTAINER" \
-            mysql --protocol=TCP --host=127.0.0.1 --user=fixcampus_ci --database=fixcampus_ci_test \
+            mysql --protocol=TCP --host=127.0.0.1 --user=fixcampus_ci --database=fixcampus_m421_ci_test \
             --batch --skip-column-names --execute='SELECT VERSION(), DATABASE(), SUBSTRING_INDEX(CURRENT_USER(), "@", 1)')"
           printf 'MySQL version / schema / account: %s\n' "$identity"
-          test "$identity" = $'8.4.11\tfixcampus_ci_test\tfixcampus_ci'
+          test "$identity" = $'8.4.11\tfixcampus_m421_ci_test\tfixcampus_ci'
           MYSQL_PWD="$FIXCAMPUS_DB_PASSWORD" docker exec --env MYSQL_PWD "$MYSQL_CONTAINER" \
-            mysql --protocol=TCP --host=127.0.0.1 --user=fixcampus_ci --database=fixcampus_ci_test \
+            mysql --protocol=TCP --host=127.0.0.1 --user=fixcampus_ci --database=fixcampus_m421_ci_test \
             --batch --execute='SHOW GRANTS'
 
       - name: Build and run all tests sequentially
@@ -129,7 +141,8 @@ jobs:
         env:
           MYSQL_CONTAINER: ${{ job.services.mysql.id }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
-          PUSH_BEFORE_SHA: ${{ github.event.before || github.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
         run: |
           set -euo pipefail
           if docker logs "$MYSQL_CONTAINER" > "$RUNNER_TEMP/fixcampus-mysql.log" 2>&1; then
@@ -153,9 +166,8 @@ jobs:
                           repositoryId=int(os.environ['GITHUB_REPOSITORY_ID']),
                           runId=int(os.environ['GITHUB_RUN_ID']),
                           runAttempt=int(os.environ['GITHUB_RUN_ATTEMPT']),
-                          headSha=os.environ['GITHUB_SHA'], baseSha=os.environ['PUSH_BEFORE_SHA'],
-                          testedMergeSha=os.environ['GITHUB_SHA'],
-                          eventName=os.environ['GITHUB_EVENT_NAME'], ref=os.environ['GITHUB_REF'])
+                          headSha=os.environ['PR_HEAD_SHA'], baseSha=os.environ['PR_BASE_SHA'],
+                          testedMergeSha=os.environ['GITHUB_SHA'])
           (destination / 'evidence.json').write_text(json.dumps(identity, indent=2) + '\n', encoding='utf-8')
           secrets = {value for key, value in os.environ.items()
                      if value and len(value) >= 8 and key.endswith(('_PASSWORD', '_TOKEN'))}
@@ -262,3 +274,37 @@ jobs:
           path: ${{ runner.temp }}/fixcampus-ci-evidence/
           if-no-files-found: warn
           retention-days: 14
+
+  frontend:
+    name: Frontend / Checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: frontend/.nvmrc
+          package-manager-cache: false
+
+      - name: Verify Node.js and npm versions
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          node -e "if (process.versions.node.split('.')[0] !== '24') process.exit(1)"
+          test "$(npm --version | cut -d. -f1)" = '11'
+
+      - name: Install locked frontend dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run all frontend checks
+        run: npm run check

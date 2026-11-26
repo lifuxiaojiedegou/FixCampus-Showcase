@@ -1,6 +1,23 @@
 # FixCampus 实现与验证依据
 
-FixCampus 是个人主导、AI 辅助开发的课程与工程实践项目。本页以当前源码和测试为依据介绍实际实现，不宣称生产部署、已完成正式漏洞审计或已启用强制分支保护。
+## 当前 REST 与全栈实现依据（2026-11-26）
+
+真实 API 与 React 19 工作台已完整覆盖三角色工单闭环、数据库深分页优化、创建持久化幂等、演示加固与限流、管理员统计、工单图片附件、站内通知与最小 PWA 应用壳：
+
+- **三角色流转与持久化幂等**：[StudentOrders](../../src/main/java/com/fixcampus/api/v1/StudentOrders.java) 在失败事务回滚后处理唯一键冲突，同内容返回原工单、不同内容返回 `409`、结果暂无法确认时返回受控 `503`。验证入口：[WebStudentSliceIntegrationTest](../../src/test/java/com/fixcampus/WebStudentSliceIntegrationTest.java)（六线程同键提交只生成一单）、[OrderOperationsApiIntegrationTest](../../src/test/java/com/fixcampus/OrderOperationsApiIntegrationTest.java)（三角色操作与待分配撤销）。
+- **演示加固、限流与请求追踪**：[ApiRequestIdFilter](../../src/main/java/com/fixcampus/api/v1/ApiRequestIdFilter.java) 贯通 `X-Request-Id` 与脱敏 MDC 日志；[ApiRateLimitFilter](../../src/main/java/com/fixcampus/api/v1/ApiRateLimitFilter.java) 挂载于 Origin、CSRF 与角色授权检查之后，对登录与显式业务写路由实施进程内限流（`429`，不含退出登录）；[ApiErrors](../../src/main/java/com/fixcampus/api/v1/ApiErrors.java) 统一业务冲突（`409`）与锁等待超时/数据访问异常（`503`）；[DemoResetService](../../src/main/java/com/fixcampus/service/DemoResetService.java) 实现双重显式开关的数据库单事务重置与提交后附件清理。验证入口：[ApiRequestIdTest](../../src/test/java/com/fixcampus/api/v1/ApiRequestIdTest.java)、[PublicDemoApiTest](../../src/test/java/com/fixcampus/api/v1/PublicDemoApiTest.java)、[DemoResetServiceTest](../../src/test/java/com/fixcampus/service/DemoResetServiceTest.java)、[DemoResetIntegrationTest](../../src/test/java/com/fixcampus/DemoResetIntegrationTest.java)。
+- **管理员统计**：[AdminStatisticsApi](../../src/main/java/com/fixcampus/api/v1/AdminStatisticsApi.java) 与 [AdminStatisticsService](../../src/main/java/com/fixcampus/service/AdminStatisticsService.java) 在只读事务内用 SQL 聚合状态、分类、7/14/30 天按日趋势及两类耗时（诚实披露缺失事件与地点自由文本边界）。验证入口：[AdminStatisticsServiceTest](../../src/test/java/com/fixcampus/service/AdminStatisticsServiceTest.java)、[AdminStatisticsApiTest](../../src/test/java/com/fixcampus/api/v1/AdminStatisticsApiTest.java)、[AdminStatisticsIntegrationTest](../../src/test/java/com/fixcampus/AdminStatisticsIntegrationTest.java)。
+- **工单图片附件**：[OrderAttachmentsApi](../../src/main/java/com/fixcampus/api/v1/OrderAttachmentsApi.java)、[OrderAttachments](../../src/main/java/com/fixcampus/api/v1/OrderAttachments.java)、[AttachmentImages](../../src/main/java/com/fixcampus/service/AttachmentImages.java) 与 [AttachmentStorage](../../src/main/java/com/fixcampus/service/AttachmentStorage.java) 实现无第三方依赖的 PNG/JPEG 魔数与解压边界预检、无 EXIF 重编码、进程内写串行化与行锁配额、事务回调磁盘清理（失败项记日志并入队补偿）及严格 403/404 隔离。验证入口：[AttachmentImagesTest](../../src/test/java/com/fixcampus/service/AttachmentImagesTest.java)、[AttachmentStorageTest](../../src/test/java/com/fixcampus/service/AttachmentStorageTest.java)、[OrderAttachmentsApiTest](../../src/test/java/com/fixcampus/api/v1/OrderAttachmentsApiTest.java)、[OrderAttachmentIntegrationTest](../../src/test/java/com/fixcampus/OrderAttachmentIntegrationTest.java)。
+- **同事务站内通知**：[NotificationsApi](../../src/main/java/com/fixcampus/api/v1/NotificationsApi.java) 与 [NotificationService](../../src/main/java/com/fixcampus/service/NotificationService.java) 通过 `@Transactional(MANDATORY)` 与工单写操作同事务落库，使用确定性幂等键与 `ON DUPLICATE KEY UPDATE id = id` 去重，并在默认 SSR Profile 下按条件不装配以保持向后兼容。验证入口：[NotificationServiceTest](../../src/test/java/com/fixcampus/service/NotificationServiceTest.java)、[NotificationsApiTest](../../src/test/java/com/fixcampus/api/v1/NotificationsApiTest.java)、[RepairOrderServiceDefaultProfileTest](../../src/test/java/com/fixcampus/service/RepairOrderServiceDefaultProfileTest.java)、[NotificationIntegrationTest](../../src/test/java/com/fixcampus/NotificationIntegrationTest.java)。
+- **数据库迁移与性能基准**：[RealMySqlTestSupport](../../src/test/java/com/fixcampus/RealMySqlTestSupport.java) 校验单隔离 schema 从 `V1～V5` 写入探针数据再升级至 `V6` 的无损兼容与约束生效；10 万条工单深分页基准见 [性能基准](../benchmark.md)。
+
+实际测试通过数与覆盖率以对应候选版本和 CI 运行记录为准。
+
+## 原 SSR 实现与历史验证依据
+
+以下正文与 208 项指标记录原 SSR 版本，旧能力缺口在该历史入口和版本范围内解释。
+
+FixCampus 是独立完成的个人课程实践项目。依据为当前生产源码、测试和已验收的 M2.0～M2.2 工程能力。本页帮助阅读代码，不声明生产规模、漏洞审计结论或 M2.3 门禁已经完成。
 
 ## 分层与数据库
 
@@ -69,8 +86,8 @@ erDiagram
 
 [现有 CI](../../.github/workflows/ci.yml) 在 Ubuntu 24.04 上运行 JDK 25、Maven 3.9.16、MySQL 8.4.11，按 001→002→004 初始化，使用非 root 单库 DML 账号且关闭演示初始化。Maven 失败保持 Job failure，收集与上传以 always 条件尽可能保存诊断；成功时拒绝缺失、损坏或空的必要报告。
 
-测试与覆盖率数据应以本仓库 `main` 的 GitHub Actions Run 和 Surefire/JaCoCo 报告为准，不以其他仓库的历史数字代替。
+候选版本的测试与覆盖率须以其独立 CI 产生的 Surefire 和 JaCoCo 报告复核；不沿用私有仓历史指标。
 
 完整 HTTP 闭环的阅读入口是 [SystemWorkflowIntegrationTest](../../src/test/java/com/fixcampus/SystemWorkflowIntegrationTest.java) 的 `registeredStudentCompletesLifecycleThroughRealCookieSessions`，通过真实 Cookie 会话完成学生提交、管理员分派、维修处理和学生确认；`realSessionsEnforceRoleAndOwnershipBeforeReadingOrMutatingOrders` 验证真实会话下的权限边界。
 
-本仓库采用 `main` 推送 CI 与人工审查，不宣称原生 Required Status Checks、生产部署或尚未完成的工程优化已经实现。
+公开候选应使用自己的 PR CI 和真实审查记录；不宣称特定仓库保护规则、生产部署或尚未完成的工程优化。

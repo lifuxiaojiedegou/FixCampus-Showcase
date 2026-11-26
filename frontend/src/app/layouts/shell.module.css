@@ -1,0 +1,259 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100dvh;
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 14px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.brand {
+  color: var(--text);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+.brand strong {
+  font-size: 21px;
+  letter-spacing: -0.7px;
+}
+.brand small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+.mark {
+  display: grid;
+  place-items: center;
+  background: var(--blue);
+  color: white;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 40px;
+}
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 16px;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 14px;
+}
+.nav a[aria-current] {
+  color: var(--blue-dark);
+  background: var(--selected);
+  border-left-color: var(--blue);
+  font-weight: 650;
+}
+.sidebarNote {
+  margin: auto 6px 0;
+  padding-top: 32px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+}
+.sidebarNote small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 8px;
+}
+.content {
+  min-width: 0;
+}
+.mockBanner {
+  padding: 7px 16px;
+  text-align: center;
+  background: var(--selected);
+  color: var(--blue-dark);
+  font-size: 12px;
+}
+.topbar {
+  padding: 14px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  font-size: 12px;
+}
+.identity a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.topbarAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.topbarAction:hover {
+  color: var(--blue);
+}
+.guestHint {
+  color: var(--muted);
+}
+.workspace {
+  max-width: var(--content-width);
+  width: calc(100% - 64px);
+  margin: 24px auto 40px;
+  min-height: 65vh;
+  outline: none;
+}
+.scenario {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
+.scenario summary {
+  cursor: pointer;
+  width: fit-content;
+  min-height: 44px;
+  padding: 10px 0;
+}
+.scenarioBody {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+}
+.scenario select {
+  width: auto;
+  min-height: var(--control-height);
+  font-size: 12px;
+}
+.footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 20px 24px;
+}
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -100px;
+  padding: 12px;
+  background: white;
+  z-index: 10;
+}
+.skip:focus {
+  top: 12px;
+}
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .workspace {
+    width: calc(100% - 40px);
+  }
+  .brand strong {
+    font-size: 19px;
+  }
+}
+@media (max-width: 900px) {
+  .shell {
+    display: block;
+  }
+  .sidebar {
+    position: static;
+    height: auto;
+    padding: 16px 20px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav {
+    margin-top: 14px;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .nav a {
+    flex: 1 1 auto;
+    min-height: 44px;
+    justify-content: center;
+    padding: 8px 10px;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+  }
+  .nav a[aria-current] {
+    border-bottom-color: var(--blue);
+  }
+  .sidebarNote {
+    display: none;
+  }
+  .topbar {
+    padding: 10px 20px;
+  }
+  .topbar > span {
+    display: none;
+  }
+  .identity {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+@media (max-width: 640px) {
+  .workspace {
+    width: calc(100% - 32px);
+    margin-top: 12px;
+  }
+  .sidebar {
+    padding: 12px 16px 8px;
+  }
+  .brand strong {
+    font-size: 20px;
+  }
+  .brand small {
+    font-size: 11px;
+  }
+  .nav {
+    margin-top: 10px;
+  }
+  .scenario {
+    margin-bottom: 12px;
+  }
+  .mockBanner {
+    font-size: 11px;
+    padding: 5px 12px;
+  }
+}

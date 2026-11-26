@@ -32,11 +32,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Real Tomcat requests: no MockMvc user, session or CSRF test post-processors. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestPropertySource(properties = {"fixcampus.auth.registration-enabled=true",
+        "server.servlet.session.cookie.secure=false"})
 class SystemWorkflowIntegrationTest extends RealMySqlTestSupport {
     private static final Pattern CSRF = Pattern.compile("<input[^>]*name=\"_csrf\"[^>]*value=\"([^\"]+)\"");
     @LocalServerPort int port;
@@ -68,13 +71,17 @@ class SystemWorkflowIntegrationTest extends RealMySqlTestSupport {
         sessions.forEach(session -> session.client.close());
         sessions.clear();
         for (String name : ownedNames) {
-            jdbc.update("DELETE FROM repair_orders WHERE student_id IN (SELECT id FROM users WHERE username=?)", name);
+            jdbc.queryForList("SELECT id FROM users WHERE username = ?", Long.class, name)
+                    .forEach(id -> removeStudentOrderFixtures(jdbc, id));
         }
     }
 
     @AfterAll
     void removeOwnedUsers() {
-        for (String name : ownedNames) jdbc.update("DELETE FROM users WHERE username=?", name);
+        for (String name : ownedNames) {
+            jdbc.queryForList("SELECT id FROM users WHERE username = ?", Long.class, name)
+                    .forEach(id -> removeUserFixture(jdbc, id));
+        }
     }
 
     @Test
