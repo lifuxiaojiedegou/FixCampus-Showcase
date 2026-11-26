@@ -34,6 +34,7 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -49,6 +50,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestPropertySource(properties = {"fixcampus.auth.registration-enabled=true",
+        "fixcampus.web.root-redirect-to-app=false"})
 class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
     @Autowired MockMvc mvc;
     @Autowired UserRepository users;
@@ -58,7 +61,7 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
     @Autowired Clock clock;
 
     private final String prefix = "it" + UUID.randomUUID().toString().substring(0, 8) + "_";
-    private final String password = "Fixture_" + UUID.randomUUID() + "!";
+    private final String fixtureCredential = "Fixture_" + UUID.randomUUID() + "!";
     private final Set<String> ownedNames = ConcurrentHashMap.newKeySet();
     private final EnumMap<Role, String> fixtureNames = new EnumMap<>(Role.class);
     private final AtomicInteger sequence = new AtomicInteger();
@@ -69,7 +72,7 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
             String name = prefix + role.name().toLowerCase(Locale.ROOT);
             ownedNames.add(name);
             fixtureNames.put(role, name);
-            users.saveAndFlush(new User(name, passwords.encode(password), "测试" + role.getLabel(), null,
+            users.saveAndFlush(new User(name, passwords.encode(fixtureCredential), "测试" + role.getLabel(), null,
                     role, LocalDateTime.now(clock)));
         }
     }
@@ -89,13 +92,13 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
 
     private MockHttpServletRequestBuilder registration(String username) {
         return post("/register").with(csrf()).param("username", username)
-                .param("password", password).param("confirmPassword", password)
+                .param("password", fixtureCredential).param("confirmPassword", fixtureCredential)
                 .param("realName", "  测试学生  ").param("phone", "   ");
     }
 
     private MockHttpSession login(Role role) throws Exception {
         return (MockHttpSession) mvc.perform(post("/login").with(csrf())
-                        .param("username", fixtureNames.get(role)).param("password", password))
+                        .param("username", fixtureNames.get(role)).param("password", fixtureCredential))
                 .andExpect(status().isFound()).andExpect(redirectedUrl(role.getHomePath()))
                 .andReturn().getRequest().getSession(false);
     }
@@ -111,8 +114,8 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
         assertThat(saved.getRealName()).isEqualTo("测试学生");
         assertThat(saved.getPhone()).isNull();
         assertThat(saved.getCreatedAt()).isAfter(LocalDateTime.now(clock).minusMinutes(1));
-        assertThat(saved.getPassword()).startsWith("{pbkdf2@SpringSecurity_v5_8}").isNotEqualTo(password);
-        assertThat(passwords.matches(password, saved.getPassword())).isTrue();
+        assertThat(saved.getPassword()).startsWith("{pbkdf2@SpringSecurity_v5_8}").isNotEqualTo(fixtureCredential);
+        assertThat(passwords.matches(fixtureCredential, saved.getPassword())).isTrue();
         mvc.perform(get("/student/orders")).andExpect(status().isFound());
     }
 
@@ -138,15 +141,15 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
         String name = newUsername();
         var parameters = new org.springframework.util.LinkedMultiValueMap<String, String>();
         parameters.set("username", name);
-        parameters.set("password", password);
-        parameters.set("confirmPassword", password);
+        parameters.set("password", fixtureCredential);
+        parameters.set("confirmPassword", fixtureCredential);
         parameters.set("realName", "测试学生");
         parameters.set("phone", "");
         parameters.set(field, value);
         if (field.equals("password")) { parameters.set("confirmPassword", value); }
         mvc.perform(post("/register").with(csrf()).params(parameters))
                 .andExpect(status().isBadRequest()).andExpect(model().attributeHasFieldErrors("registerForm", error))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(password))));
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(fixtureCredential))));
         assertThat(users.existsByUsername(name)).isFalse();
     }
 
@@ -187,7 +190,7 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
         mvc.perform(registration(name.toUpperCase(Locale.ROOT)))
                 .andExpect(status().isBadRequest()).andExpect(model().attributeHasFieldErrors("registerForm", "username"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("该用户名已被使用")))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(password))));
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(fixtureCredential))));
         assertThat(users.findByUsername(name).orElseThrow().getPassword()).isEqualTo(originalHash);
         assertThat(users.findByUsername(name).orElseThrow().getRole()).isEqualTo(Role.ADMIN);
     }
@@ -200,7 +203,7 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
             var attempts = Stream.generate(() -> executor.submit(() -> {
                 start.await();
                 var form = new RegisterForm();
-                form.setUsername(name); form.setPassword(password); form.setConfirmPassword(password); form.setRealName("并发测试学生");
+                form.setUsername(name); form.setPassword(fixtureCredential); form.setConfirmPassword(fixtureCredential); form.setRealName("并发测试学生");
                 try { service.register(form); return "created"; }
                 catch (DuplicateUsernameException expected) { return "duplicate"; }
             })).limit(2).toList();
@@ -216,7 +219,7 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
     void roleLoginNormalizesUsernameIgnoresForgedRoleAndRejectsCrossRoleRequests(Role role) throws Exception {
         MvcResult result = mvc.perform(post("/login").with(csrf())
                         .param("username", " " + fixtureNames.get(role).toUpperCase(Locale.ROOT) + " ")
-                        .param("password", password).param("role", "ADMIN").param("redirect", "/admin/orders"))
+                        .param("password", fixtureCredential).param("role", "ADMIN").param("redirect", "/admin/orders"))
                 .andExpect(redirectedUrl(role.getHomePath())).andReturn();
         var session = (MockHttpSession) result.getRequest().getSession(false);
         mvc.perform(get(role.getHomePath()).session(session)).andExpect(status().isOk())
@@ -267,7 +270,7 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
         var before = (MockHttpSession) mvc.perform(get("/login")).andReturn().getRequest().getSession(false);
         String previousId = before.getId();
         var after = mvc.perform(post("/login").session(before).with(csrf())
-                        .param("username", fixtureNames.get(Role.STUDENT)).param("password", password))
+                        .param("username", fixtureNames.get(Role.STUDENT)).param("password", fixtureCredential))
                 .andExpect(status().isFound()).andReturn().getRequest().getSession(false);
         assertThat(after.getId()).isNotEqualTo(previousId);
         var context = (SecurityContext) after.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
@@ -303,9 +306,9 @@ class UserAuthenticationIntegrationTest extends RealMySqlTestSupport {
     @Test
     void displayNameIsEscapedAndStudentOrderFormIsAvailableAfterStage42() throws Exception {
         String name = newUsername();
-        mvc.perform(post("/register").with(csrf()).param("username", name).param("password", password)
-                .param("confirmPassword", password).param("realName", "<script>alert(1)</script>")).andExpect(status().isSeeOther());
-        var session = (MockHttpSession) mvc.perform(post("/login").with(csrf()).param("username", name).param("password", password))
+        mvc.perform(post("/register").with(csrf()).param("username", name).param("password", fixtureCredential)
+                .param("confirmPassword", fixtureCredential).param("realName", "<script>alert(1)</script>")).andExpect(status().isSeeOther());
+        var session = (MockHttpSession) mvc.perform(post("/login").with(csrf()).param("username", name).param("password", fixtureCredential))
                 .andReturn().getRequest().getSession(false);
         mvc.perform(get("/student/orders").session(session)).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("&lt;script&gt;")))

@@ -89,13 +89,13 @@ class StudentRepairIntegrationTest extends RealMySqlTestSupport {
 
     @AfterEach
     void cleanOwnedOrders() {
-        for (Long id : ownedUserIds) { jdbc.update("DELETE FROM repair_orders WHERE student_id = ?", id); }
+        ownedUserIds.forEach(id -> removeStudentOrderFixtures(jdbc, id));
     }
 
     @AfterAll
     void cleanOwnedUsers() {
         cleanOwnedOrders();
-        for (Long id : ownedUserIds) { jdbc.update("DELETE FROM users WHERE id = ?", id); }
+        ownedUserIds.forEach(id -> removeUserFixture(jdbc, id));
     }
 
     private RepairOrderForm form() {
@@ -158,7 +158,8 @@ class StudentRepairIntegrationTest extends RealMySqlTestSupport {
     }
 
     static Stream<Arguments> invalidForms() {
-        return Stream.of(Arguments.of("location", "", "location"), Arguments.of("location", "\u2003", "location"),
+        var emSpace = Character.toString(0x2003);
+        return Stream.of(Arguments.of("location", "", "location"), Arguments.of("location", emSpace, "location"),
                 Arguments.of("location", "😀".repeat(121), "location"), Arguments.of("description", " ", "description"),
                 Arguments.of("description", "😀".repeat(2001), "description"), Arguments.of("category", "", "category"),
                 Arguments.of("category", "INVALID_CATEGORY", "category"));

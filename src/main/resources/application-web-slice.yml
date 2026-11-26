@@ -1,0 +1,7 @@
+# Local profile for a separately provisioned isolated MySQL schema.
+server:
+  port: ${FIXCAMPUS_PORT:18080}
+  servlet:
+    session:
+      cookie:
+        secure: ${FIXCAMPUS_COOKIE_SECURE:true}

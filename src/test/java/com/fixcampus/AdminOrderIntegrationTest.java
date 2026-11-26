@@ -85,7 +85,7 @@ class AdminOrderIntegrationTest extends RealMySqlTestSupport {
 
     @AfterEach
     void cleanOnlyOwnedData() {
-        for (Long id : ownedUserIds) { jdbc.update("DELETE FROM repair_orders WHERE student_id=?", id); }
+        ownedUserIds.forEach(id -> removeStudentOrderFixtures(jdbc, id));
         for (var actor : List.of(worker, otherWorker)) {
             jdbc.update("UPDATE users SET role='WORKER' WHERE id=?", actor.getId());
         }
@@ -94,7 +94,7 @@ class AdminOrderIntegrationTest extends RealMySqlTestSupport {
     @AfterAll
     void removeOwnedUsers() {
         cleanOnlyOwnedData();
-        for (Long id : ownedUserIds) { jdbc.update("DELETE FROM users WHERE id=?", id); }
+        ownedUserIds.forEach(id -> removeUserFixture(jdbc, id));
     }
 
     private Long create(CampusPrincipal owner) {

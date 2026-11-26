@@ -1,4 +1,6 @@
 spring:
+  flyway:
+    enabled: false
   application:
     name: fixcampus
   datasource:
@@ -14,13 +16,35 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  servlet:
+    multipart:
+      max-file-size: 3MB
+      max-request-size: 4MB
   sql:
     init:
       mode: never
 
 fixcampus:
+  attachments:
+    storage-dir: ${FIXCAMPUS_ATTACHMENT_STORAGE_DIR:${java.io.tmpdir}/fixcampus-attachments/${FIXCAMPUS_DB_NAME:fixcampus_dev}}
+    max-file-bytes: 2097152
+    max-width: 4096
+    max-height: 4096
+    max-pixels: 16000000
+    max-student-per-order: 3
+    max-worker-per-order: 2
+    max-total-bytes: 67108864
+  auth:
+    registration-enabled: ${FIXCAMPUS_AUTH_REGISTRATION_ENABLED:true}
+  web:
+    root-redirect-to-app: false
+  rate-limit:
+    enabled: false
   demo:
     enabled: ${FIXCAMPUS_DEMO_ENABLED:false}
+    reset:
+      enabled: ${FIXCAMPUS_DEMO_RESET_ENABLED:false}
+      cron: ${FIXCAMPUS_DEMO_RESET_CRON:0 0 4 * * *}
     admin-password: ${FIXCAMPUS_DEMO_ADMIN_PASSWORD:}
     worker-password: ${FIXCAMPUS_DEMO_WORKER_PASSWORD:}
     student-password: ${FIXCAMPUS_DEMO_STUDENT_PASSWORD:}
@@ -33,6 +57,52 @@ server:
     include-stacktrace: never
   servlet:
     session:
+      timeout: 30m
       cookie:
         http-only: true
         same-site: lax
+
+---
+spring:
+  config:
+    activate:
+      on-profile: "web-slice | demo | prod"
+  datasource:
+    hikari:
+      connection-init-sql: SET SESSION innodb_lock_wait_timeout = 3
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    clean-disabled: true
+    user: ${FIXCAMPUS_MIGRATION_USERNAME}
+    password: ${FIXCAMPUS_MIGRATION_PASSWORD}
+
+server:
+  servlet:
+    session:
+      tracking-modes: cookie
+      cookie:
+        secure: true
+        path: /
+
+fixcampus:
+  auth:
+    registration-enabled: ${FIXCAMPUS_AUTH_REGISTRATION_ENABLED:false}
+  web:
+    origin: ${FIXCAMPUS_WEB_ORIGIN}
+    root-redirect-to-app: true
+  rate-limit:
+    enabled: true
+    login-requests: 30
+    login-window-seconds: 60
+    write-requests: 120
+    write-window-seconds: 60
+    max-keys-per-bucket: 10000
+
+---
+spring:
+  config:
+    activate:
+      on-profile: "demo | prod"
+  datasource:
+    url: jdbc:mysql://${FIXCAMPUS_DB_HOST:127.0.0.1}:${FIXCAMPUS_DB_PORT:3306}/${FIXCAMPUS_DB_NAME}?connectionTimeZone=Asia/Hong_Kong&characterEncoding=UTF-8

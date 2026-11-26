@@ -6,6 +6,7 @@ import com.fixcampus.security.CampusPrincipal;
 import com.fixcampus.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -16,14 +17,20 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.servlet.ModelAndView;
 
 @Controller
 public class AuthController {
     private final UserService users;
+    private final boolean registrationEnabled;
 
-    public AuthController(UserService users) { this.users = users; }
+    public AuthController(UserService users,
+            @Value("${fixcampus.auth.registration-enabled:true}") boolean registrationEnabled) {
+        this.users = users;
+        this.registrationEnabled = registrationEnabled;
+    }
 
     @InitBinder("registerForm")
     void registrationFields(WebDataBinder binder) {
@@ -31,12 +38,14 @@ public class AuthController {
     }
 
     @GetMapping("/login")
-    public String login(@AuthenticationPrincipal CampusPrincipal principal) {
+    public String login(@AuthenticationPrincipal CampusPrincipal principal, Model model) {
+        model.addAttribute("registrationEnabled", registrationEnabled);
         return principal == null ? "auth/login" : "redirect:" + principal.getRole().getHomePath();
     }
 
     @GetMapping("/register")
     public String register(@AuthenticationPrincipal CampusPrincipal principal, Model model) {
+        requireRegistrationEnabled();
         if (principal != null) { return "redirect:" + principal.getRole().getHomePath(); }
         model.addAttribute("registerForm", new RegisterForm());
         return "auth/register";
@@ -45,6 +54,7 @@ public class AuthController {
     @PostMapping("/register")
     public ModelAndView register(@Valid @ModelAttribute("registerForm") RegisterForm form,
                            BindingResult errors, HttpServletResponse response) {
+        requireRegistrationEnabled();
         if (!errors.hasErrors()) {
             try {
                 users.register(form);
@@ -58,6 +68,10 @@ public class AuthController {
         form.clearPasswords();
         response.setStatus(HttpStatus.BAD_REQUEST.value());
         return new ModelAndView("auth/register");
+    }
+
+    private void requireRegistrationEnabled() {
+        if (!registrationEnabled) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
     }
 
     @GetMapping("/logout")

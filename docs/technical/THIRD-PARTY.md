@@ -26,3 +26,12 @@ Exception; eligibility and obligations depend on the actual redistribution.
 The precise dependency versions, embedded native components and applicable
 LICENSE/NOTICE conditions require separate assessment before any binary
 release. Binary redistribution has not been approved.
+
+## Frontend dependencies
+
+The React/Vite toolchain and frontend dependencies are pinned in
+[package-lock.json](../../frontend/package-lock.json). The source snapshot
+contains the application, first-party PWA icons and the dependency lockfile.
+It excludes node_modules and compiled assets. After installing the locked
+dependencies, run `npm run licenses` from `frontend/` to inspect actual
+package license metadata and sources for a redistribution review.

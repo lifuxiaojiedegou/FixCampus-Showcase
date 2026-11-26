@@ -80,13 +80,13 @@ class StudentConfirmationIntegrationTest extends RealMySqlTestSupport {
 
     @AfterEach
     void cleanOwnedOrders() {
-        for (Long id : ownedUserIds) { jdbc.update("DELETE FROM repair_orders WHERE student_id=?", id); }
+        ownedUserIds.forEach(id -> removeStudentOrderFixtures(jdbc, id));
     }
 
     @AfterAll
     void cleanOwnedUsers() {
         cleanOwnedOrders();
-        for (Long id : ownedUserIds) { jdbc.update("DELETE FROM users WHERE id=?", id); }
+        ownedUserIds.forEach(id -> removeUserFixture(jdbc, id));
     }
 
     private Long create(RepairStatus state) {
