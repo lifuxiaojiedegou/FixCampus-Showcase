@@ -1,0 +1,60 @@
+services:
+  mysql:
+    image: mysql:8.4.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      FIXCAMPUS_DB_PASSWORD: ${FIXCAMPUS_DB_PASSWORD:?Set FIXCAMPUS_DB_PASSWORD in .env}
+      FIXCAMPUS_MIGRATION_PASSWORD: ${FIXCAMPUS_MIGRATION_PASSWORD:?Set FIXCAMPUS_MIGRATION_PASSWORD in .env}
+      TZ: Asia/Hong_Kong
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Hong_Kong
+      SPRING_PROFILES_ACTIVE: web-slice
+      SERVER_ADDRESS: 0.0.0.0
+      FIXCAMPUS_PORT: "18080"
+      FIXCAMPUS_DB_HOST: mysql
+      FIXCAMPUS_DB_PORT: "3306"
+      FIXCAMPUS_DB_NAME: fixcampus_m421_docker_test
+      FIXCAMPUS_DB_USERNAME: fixcampus_app
+      FIXCAMPUS_DB_PASSWORD: ${FIXCAMPUS_DB_PASSWORD:?Set FIXCAMPUS_DB_PASSWORD in .env}
+      FIXCAMPUS_MIGRATION_USERNAME: fixcampus_migration
+      FIXCAMPUS_MIGRATION_PASSWORD: ${FIXCAMPUS_MIGRATION_PASSWORD:?Set FIXCAMPUS_MIGRATION_PASSWORD in .env}
+      FIXCAMPUS_WEB_ORIGIN: http://127.0.0.1:5173
+      FIXCAMPUS_COOKIE_SECURE: "false"
+      FIXCAMPUS_ATTACHMENT_STORAGE_DIR: /data/attachments
+      FIXCAMPUS_DEMO_ENABLED: "true"
+      FIXCAMPUS_DEMO_ADMIN_PASSWORD: ${FIXCAMPUS_DEMO_ADMIN_PASSWORD:?Set FIXCAMPUS_DEMO_ADMIN_PASSWORD in .env}
+      FIXCAMPUS_DEMO_WORKER_PASSWORD: ${FIXCAMPUS_DEMO_WORKER_PASSWORD:?Set FIXCAMPUS_DEMO_WORKER_PASSWORD in .env}
+      FIXCAMPUS_DEMO_STUDENT_PASSWORD: ${FIXCAMPUS_DEMO_STUDENT_PASSWORD:?Set FIXCAMPUS_DEMO_STUDENT_PASSWORD in .env}
+    volumes:
+      - attachments_data:/data
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5173:80"
+
+volumes:
+  mysql_data:
+  attachments_data:

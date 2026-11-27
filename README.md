@@ -70,7 +70,18 @@ flowchart LR
 
 ## 本地运行
 
-- **完整全栈运行（后端 + MySQL + 前端 `/app/`）**：详见 [Web/PWA 启动与接口指南](docs/portfolio/WEB-DEMO.md)（支持 `scripts/run-web-slice.ps1` 自动执行 Flyway `V1～V6` 与预置演示账号初始化）。
+### 方式一：Docker Compose 一键启动（跨平台推荐，无需本机安装 JDK / Node / MySQL）
+
+```bash
+cp .env.example .env    # 将 .env 中的 REPLACE_WITH_* 替换为自定义本机密码（8～64 字符）
+docker compose up --build
+```
+
+等待容器就绪后访问 `http://127.0.0.1:5173/app/`，即可使用预置三角色账号（`student01` / `admin01` / `worker01`）与 `.env` 中设置的密码体验完整业务。停止并清空演示数据：`docker compose down -v`。
+
+### 方式二：本机原生运行 / 纯前端 Mock
+
+- **本机完整全栈运行（JDK 25 + Node 24 + MySQL 8.4）**：详见 [Web/PWA 启动与接口指南](docs/portfolio/WEB-DEMO.md)（支持 `scripts/run-web-slice.ps1` 自动执行 Flyway `V1～V6` 与预置演示账号初始化）。
 - **离线纯前端预览（无需数据库）**：进入 `frontend/` 执行 `npm ci --ignore-scripts --no-audit --no-fund` 后运行 `npm run dev:mock`。
 
 ---
