@@ -1,7 +1,7 @@
 # 软件需求规格说明书（SRS）
 
 **项目名称**：FixCampus · 校园报修管理平台  
-**文档版本**：v2.0（对齐当前 Web/PWA + Flyway `V1～V6` 实现基线）  
+**文档版本**：v1.0（对齐当前 Web/PWA + Flyway `V1～V6` 实现基线）  
 **编制日期**：2026-11-26  
 **相关文档**：[返回 README](../../README.md) · [系统概要与详细设计说明书](02-SYSTEM-AND-DATABASE-DESIGN.md) · [测试计划与测试报告](03-TEST-PLAN-AND-REPORT.md) · [用户与部署手册](04-USER-AND-DEPLOYMENT-MANUAL.md) · [开发过程与迭代记录](05-DEVELOPMENT-PROCESS-AND-ITERATION-LOG.md)
 

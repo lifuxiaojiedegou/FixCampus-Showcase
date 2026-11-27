@@ -1,6 +1,6 @@
 # FixCampus 实现与测试索引
 
-本文档按模块索引 FixCampus 2.0（Web/PWA + REST `/api/v1` + Flyway `V1～V6`）的核心源码与对应自动化测试，便于快速定位代码实现。
+本文档按模块索引 FixCampus（Web/PWA + REST `/api/v1` + Flyway `V1～V6`）的核心源码与对应自动化测试，便于快速定位代码实现。
 
 ## 核心模块与源码入口
 

@@ -1,6 +1,6 @@
 # FixCampus · 工程设计与取舍说明
 
-本文说明 FixCampus 2.0（**React 19 / TypeScript / Vite Web/PWA + Spring Boot 3.5 + MySQL 8.4 + Flyway `V1～V6`**）在权限隔离、并发事务、附件处理、统计口径与深分页上的核心设计与架构取舍。
+本文说明 FixCampus（**React 19 / TypeScript / Vite Web/PWA + Spring Boot 3.5 + MySQL 8.4 + Flyway `V1～V6`**）在权限隔离、并发事务、附件处理、统计口径与深分页上的核心设计与架构取舍。
 
 [返回 README](../../README.md) · [Web/PWA 演示](WEB-DEMO.md) · [系统架构与状态图](SYSTEM-DIAGRAMS.md) · [实现与测试依据](../technical/IMPLEMENTATION.md)
 
