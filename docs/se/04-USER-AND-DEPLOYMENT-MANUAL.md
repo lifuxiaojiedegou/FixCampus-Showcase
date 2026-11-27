@@ -1,7 +1,7 @@
 # 用户操作手册与部署运维指南
 
 **项目名称**：FixCampus · 校园报修管理平台  
-**文档版本**：v2.0（对齐当前 Web/PWA + Flyway `V1～V6` 实现基线）  
+**文档版本**：v1.0（对齐当前 Web/PWA + Flyway `V1～V6` 实现基线）  
 **编制日期**：2026-11-26  
 **相关文档**：[返回 README](../../README.md) · [Web/PWA 演示指南](../portfolio/WEB-DEMO.md) · [本地运行指南](../technical/LOCAL-RUN.md) · [系统概要与详细设计说明书](02-SYSTEM-AND-DATABASE-DESIGN.md)
 

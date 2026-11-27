@@ -1,7 +1,7 @@
 # 软件测试计划与测试报告
 
 **项目名称**：FixCampus · 校园报修管理平台  
-**文档版本**：v2.0（对齐当前 Web/PWA + Flyway `V1～V6` 实现基线）  
+**文档版本**：v1.0（对齐当前 Web/PWA + Flyway `V1～V6` 实现基线）  
 **编制日期**：2026-11-26  
 **相关文档**：[返回 README](../../README.md) · [软件需求规格说明书](01-REQUIREMENTS-SPECIFICATION.md) · [系统概要与详细设计说明书](02-SYSTEM-AND-DATABASE-DESIGN.md) · [性能基准](../benchmark.md)
 

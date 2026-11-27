@@ -1,6 +1,6 @@
 # FixCampus React 前端（Web / PWA）
 
-本目录为 **FixCampus 2.0** 的前端工作台源码，基于 **React 19 + TypeScript + Vite** 构建，与后端 `/api/v1` 同源联调，支持三角色完整报修闭环、图片附件、站内通知、管理员统计面板与最小 PWA 应用壳。
+本目录为 **FixCampus** 的前端工作台源码，基于 **React 19 + TypeScript + Vite** 构建，与后端 `/api/v1` 同源联调，支持三角色完整报修闭环、图片附件、站内通知、管理员统计面板与最小 PWA 应用壳。
 
 ## 运行入口与模式
 
