@@ -308,3 +308,75 @@ jobs:
 
       - name: Run all frontend checks
         run: npm run check
+
+  docker-smoke:
+    name: Docker / Compose Smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build and verify Docker Compose stack
+        run: |
+          set -euo pipefail
+          root_pw="$(openssl rand -hex 16)"
+          app_pw="$(openssl rand -hex 16)"
+          mig_pw="$(openssl rand -hex 16)"
+          adm_pw="$(openssl rand -hex 12)"
+          wrk_pw="$(openssl rand -hex 12)"
+          stu_pw="$(openssl rand -hex 12)"
+          for secret in "$root_pw" "$app_pw" "$mig_pw" "$adm_pw" "$wrk_pw" "$stu_pw"; do
+            printf '::add-mask::%s\n' "$secret"
+          done
+          cat > .env <<ENV
+          MYSQL_ROOT_PASSWORD=$root_pw
+          FIXCAMPUS_DB_PASSWORD=$app_pw
+          FIXCAMPUS_MIGRATION_PASSWORD=$mig_pw
+          FIXCAMPUS_DEMO_ADMIN_PASSWORD=$adm_pw
+          FIXCAMPUS_DEMO_WORKER_PASSWORD=$wrk_pw
+          FIXCAMPUS_DEMO_STUDENT_PASSWORD=$stu_pw
+          ENV
+          trap 'docker compose down -v || true; rm -f .env' EXIT
+          docker compose up -d --build --wait
+          STU_PW="$stu_pw" ADM_PW="$adm_pw" python3 - <<'PY'
+          import http.cookiejar, json, os, struct, urllib.request, uuid, zlib
+          base = "http://127.0.0.1:5173"
+          with urllib.request.urlopen(base + "/app/") as r:
+              assert r.status == 200 and '<div id="root"' in r.read().decode()
+          cj = http.cookiejar.CookieJar()
+          op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+          def api(method, path, payload=None, csrf=None, idem=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              headers = {"Origin": base}
+              if data is not None: headers["Content-Type"] = "application/json"
+              if csrf: headers[csrf[0]] = csrf[1]
+              if idem: headers["Idempotency-Key"] = idem
+              with op.open(urllib.request.Request(base + path, data=data, method=method, headers=headers)) as r:
+                  return r.status, json.loads(r.read().decode())
+          _, c = api("GET", "/api/v1/auth/csrf")
+          st, me = api("POST", "/api/v1/auth/login", {"username": "student01", "password": os.environ["STU_PW"]}, csrf=(c["headerName"], c["token"]))
+          assert st == 200 and me["role"] == "STUDENT"
+          _, c = api("GET", "/api/v1/auth/csrf")
+          st, created = api("POST", "/api/v1/orders", {"location": "CI Docker Smoke", "category": "WATER_ELECTRICITY", "description": "Docker Compose smoke test"}, csrf=(c["headerName"], c["token"]), idem=str(uuid.uuid4()))
+          assert st == 201 and int(created["id"]) >= 1
+          def chunk(k, d): return struct.pack(">I", len(d)) + k + d + struct.pack(">I", zlib.crc32(k + d) & 0xffffffff)
+          png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00")) + chunk(b"IEND", b"")
+          b = "----FixCampusCISmoke"
+          mp = f"--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"smoke.png\"\r\nContent-Type: image/png\r\n\r\n".encode() + png + f"\r\n--{b}--\r\n".encode()
+          with op.open(urllib.request.Request(f"{base}/api/v1/orders/{created['id']}/attachments", data=mp, method="POST", headers={"Origin": base, c["headerName"]: c["token"], "Content-Type": f"multipart/form-data; boundary={b}"})) as r:
+              assert r.status == 201
+          cj2 = http.cookiejar.CookieJar()
+          op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj2))
+          _, c2 = api("GET", "/api/v1/auth/csrf")
+          st, adm = api("POST", "/api/v1/auth/login", {"username": "admin01", "password": os.environ["ADM_PW"]}, csrf=(c2["headerName"], c2["token"]))
+          assert st == 200 and adm["role"] == "ADMIN"
+          st, stats = api("GET", "/api/v1/admin/statistics?days=14")
+          assert st == 200 and stats["totalOrders"] == 1
+          print("CI_DOCKER_SMOKE_PASS")
+          PY
