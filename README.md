@@ -73,7 +73,7 @@ flowchart LR
 ### 方式一：Docker Compose 一键启动（跨平台推荐，无需本机安装 JDK / Node / MySQL）
 
 ```bash
-cp .env.example .env    # 将 .env 中的 REPLACE_WITH_* 替换为自定义本机密码（8～64 字符）
+cp .env.example .env    # 将 .env 中的 REPLACE_WITH_* 替换为自定义本机密码（8～64 字符，三个演示账号密码须互不相同）
 docker compose up --build
 ```
 

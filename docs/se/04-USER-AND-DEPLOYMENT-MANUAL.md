@@ -94,7 +94,7 @@
 | `FIXCAMPUS_AUTH_REGISTRATION_ENABLED` | SSR 为 `true`；Web/演示/生产为 `false` | 全局 | 是否开放自助注册路由 |
 | `FIXCAMPUS_ATTACHMENT_STORAGE_DIR` | `${java.io.tmpdir}/fixcampus-attachments/${FIXCAMPUS_DB_NAME}` | 全局 | 托管图片附件根目录（按库名隔离并写入数据库绑定标记） |
 | `FIXCAMPUS_DEMO_ENABLED` | `false` | 全局 | 是否启用三角色预置演示账号初始化 |
-| `FIXCAMPUS_DEMO_ADMIN_PASSWORD` / `FIXCAMPUS_DEMO_WORKER_PASSWORD` / `FIXCAMPUS_DEMO_STUDENT_PASSWORD` | 空 | 启用演示时必填 | 三个预置演示账号初始密码（8～64 字符，外部注入） |
+| `FIXCAMPUS_DEMO_ADMIN_PASSWORD` / `FIXCAMPUS_DEMO_WORKER_PASSWORD` / `FIXCAMPUS_DEMO_STUDENT_PASSWORD` | 空 | 启用演示时必填 | 三个预置演示账号初始密码（8～64 字符，三个账号密码须互不相同，外部注入） |
 | `FIXCAMPUS_DEMO_RESET_ENABLED` | `false` | 需同时启用演示 | 双重开关之二：是否启用定时重置演示库（默认关闭） |
 | `FIXCAMPUS_DEMO_RESET_CRON` | `0 0 4 * * *` | 启用重置时 | 演示库重置 Cron 表达式（时区 `Asia/Hong_Kong`） |
 
